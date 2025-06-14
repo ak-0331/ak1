@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オンラインカジノ＆領土戦争ゲーム</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <div class="player-info">
+                <span id="user-icon-display" class="player-icon">😀</span>
+                <span id="username-display" class="player-name">ゲスト</span>
+                <span class="player-coins">所持コイン: <span id="coins">0</span>C</span>
+                <span class="player-territories">領土: <span id="player-territories">0</span></span>
+            </div>
+            <h1>オンラインカジノ＆領土戦争</h1>
+        </header>
+
+        <main>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="casino">カジノ</button>
+                <button class="tab-button" data-tab="work">お仕事</button>
+                <button class="tab-button" data-tab="military">軍事基地</button>
+                <button class="tab-button" data-tab="battle">バトル</button>
+                <button class="tab-button" data-tab="ranking">ランキング</button>
+                <button class="tab-button" data-tab="settings">設定</button>
+            </div>
+
+            <div id="casino" class="tab-content active">
+                <h2>スロットゲーム</h2>
+                <div class="slot-machine">
+                    <div class="reels">
+                        <div class="reel" id="reel1"></div>
+                        <div class="reel" id="reel2"></div>
+                        <div class="reel" id="reel3"></div>
+                    </div>
+                    <div class="slot-controls">
+                        <label for="bet-amount">賭け金:</label>
+                        <input type="number" id="bet-amount" value="10" min="1" step="1">
+                        <button id="spin-button">スピン！</button>
+                    </div>
+                    <p id="spin-message" class="game-message">リールを回してコインを増やそう！</p>
+                    <div class="spin-direction-options">
+                        <label>
+                            <input type="radio" name="spin-direction" id="spin-direction-normal" value="normal" checked>
+                            通常スピン
+                        </label>
+                        <label>
+                            <input type="radio" name="spin-direction" id="spin-direction-reverse" value="reverse">
+                            逆回転スピン (隠し要素)
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="work" class="tab-content">
+                <h2>お仕事セクション</h2>
+                <p>タイピングゲームでお金を稼ごう！</p>
+                <div class="work-section">
+                    <p id="current-word" class="highlight-word"></p>
+                    <input type="text" id="typing-input" placeholder="ここに単語を入力">
+                    <button id="next-typing-word-button">次の単語</button>
+                    <p id="work-message" class="game-message"></p>
+                    <div class="daily-bonus-section">
+                        <h3>デイリーボーナス</h3>
+                        <p id="daily-bonus-message">毎日ログインしてボーナスをゲット！</p>
+                        <button id="claim-bonus-button">ボーナスを受け取る</button>
+                    </div>
+                    <p class="daily-coins-earned">今日の獲得コイン: <span id="daily-coins-earned">0</span>/<span id="daily-coin-limit">500</span>C</p>
+                </div>
+            </div>
+
+            <div id="military" class="tab-content">
+                <h2>軍事基地</h2>
+                <p>領土とユニットを増やして国力を強化しよう！</p>
+                <p id="military-message" class="game-message">新たな領土や強力なユニットを手に入れよう！</p>
+
+                <div class="military-section">
+                    <h3>領土</h3>
+                    <div class="territory-buy">
+                        <p>領土購入: 1000C</p>
+                        <button id="buy-territory-button">領土を購入</button>
+                    </div>
+
+                    <h3>ユニット</h3>
+                    <div class="unit-buy-grid">
+                        <div class="unit-option">
+                            <h4>歩兵</h4>
+                            <p>保有数: <span id="infantry-count-1">0</span> (<span id="infantry-cooldown-1">0</span>体クールダウン中)</p>
+                            <label>レベル:
+                                <select class="unit-grade-select" data-unit-type="infantry">
+                                    <option value="1">Lv.1 (100C)</option>
+                                    <option value="2">Lv.2 (200C)</option>
+                                    <option value="3">Lv.3 (400C)</option>
+                                </select>
+                            </label>
+                            <label>数:
+                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
+                            </label>
+                            <button class="buy-unit-button" data-unit-type="infantry">購入</button>
+                        </div>
+                        <div class="unit-option">
+                            <h4>装甲車</h4>
+                            <p>保有数: <span id="armored_car-count-1">0</span> (<span id="armored_car-cooldown-1">0</span>体クールダウン中)</p>
+                            <label>レベル:
+                                <select class="unit-grade-select" data-unit-type="armored_car">
+                                    <option value="1">Lv.1 (500C)</option>
+                                    <option value="2">Lv.2 (1000C)</option>
+                                    <option value="3">Lv.3 (2000C)</option>
+                                </select>
+                            </label>
+                            <label>数:
+                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
+                            </label>
+                            <button class="buy-unit-button" data-unit-type="armored_car">購入</button>
+                        </div>
+                        <div class="unit-option">
+                            <h4>戦車</h4>
+                            <p>保有数: <span id="tank-count-1">0</span> (<span id="tank-cooldown-1">0</span>体クールダウン中)</p>
+                            <label>レベル:
+                                <select class="unit-grade-select" data-unit-type="tank">
+                                    <option value="1">Lv.1 (2000C)</option>
+                                    <option value="2">Lv.2 (4000C)</option>
+                                    <option value="3">Lv.3 (8000C)</option>
+                                </select>
+                            </label>
+                            <label>数:
+                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
+                            </label>
+                            <button class="buy-unit-button" data-unit-type="tank">購入</button>
+                        </div>
+                        <div class="unit-option">
+                            <h4>戦闘機</h4>
+                            <p>保有数: <span id="fighter-count-1">0</span> (<span id="fighter-cooldown-1">0</span>体クールダウン中)</p>
+                            <label>レベル:
+                                <select class="unit-grade-select" data-unit-type="fighter">
+                                    <option value="1">Lv.1 (5000C)</option>
+                                    <option value="2">Lv.2 (10000C)</option>
+                                    <option value="3">Lv.3 (20000C)</option>
+                                </select>
+                            </label>
+                            <label>数:
+                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
+                            </label>
+                            <button class="buy-unit-button" data-unit-type="fighter">購入</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="battle" class="tab-content">
+                <h2>バトルセクション</h2>
+                <p id="battle-message" class="game-message">敵プレイヤーを攻撃して領土やコインを奪おう！</p>
+                <div class="battle-controls">
+                    <div class="unit-select-area">
+                        <h3>攻撃ユニット選択</h3>
+                        <div class="unit-select-grid">
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="1">
+                                歩兵 Lv.1 (<span id="infantry-available-1">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="2">
+                                歩兵 Lv.2 (<span id="infantry-available-2">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="3">
+                                歩兵 Lv.3 (<span id="infantry-available-3">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="1">
+                                装甲車 Lv.1 (<span id="armored_car-available-1">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="2">
+                                装甲車 Lv.2 (<span id="armored_car-available-2">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="3">
+                                装甲車 Lv.3 (<span id="armored_car-available-3">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="1">
+                                戦車 Lv.1 (<span id="tank-available-1">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="2">
+                                戦車 Lv.2 (<span id="tank-available-2">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="3">
+                                戦車 Lv.3 (<span id="tank-available-3">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="1">
+                                戦闘機 Lv.1 (<span id="fighter-available-1">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="2">
+                                戦闘機 Lv.2 (<span id="fighter-available-2">0</span>)
+                            </button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="3">
+                                戦闘機 Lv.3 (<span id="fighter-available-3">0</span>)
+                            </button>
+                        </div>
+                        <p>選択中のユニット: <span id="selected-unit-display">なし</span></p>
+                        <label for="deploy-quantity-input">出撃数: </label>
+                        <input type="number" id="deploy-quantity-input" value="1" min="1">
+                    </div>
+
+                    <div class="target-select-area">
+                        <h3>攻撃対象選択</h3>
+                        <ul id="player-list">
+                            </ul>
+                        <p>選択中の対象: <span id="selected-player-display">なし</span></p>
+                        <button id="attack-button">攻撃開始！</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ranking" class="tab-content">
+                <h2>ランキング</h2>
+                <p id="your-rank-display">あなたの現在の順位: -位</p>
+                <ul id="ranking-list">
+                    </ul>
+            </div>
+
+            <div id="settings" class="tab-content">
+                <h2>設定</h2>
+                <div class="setting-item">
+                    <h3>アカウント名</h3>
+                    <input type="text" id="username-input" placeholder="新しいアカウント名">
+                    <button id="save-username-button">変更を保存</button>
+                    <p id="username-message" class="game-message"></p>
+                </div>
+                <div class="setting-item">
+                    <h3>アイコン変更</h3>
+                    <input type="file" id="icon-upload-input" accept="image/*">
+                    <div class="icon-selector">
+                        <div class="icon" data-icon="😀">😀</div>
+                        <div class="icon" data-icon="😎">😎</div>
+                        <div class="icon" data-icon="🤖">🤖</div>
+                        <div class="icon" data-icon="👽">👽</div>
+                        <div class="icon" data-icon="😇">😇</div>
+                        <div class="icon" data-icon="😈">😈</div>
+                    </div>
+                    <p class="game-message">アイコンをアップロードするか、絵文字を選択してください。</p>
+                </div>
+            </div>
+        </main>
+
+        <div id="warning-modal" class="modal">
+            <div class="modal-content">
+                <h2>重要なお知らせ</h2>
+                <p>このゲームはデモ版であり、以下の点にご注意ください：</p>
+                <ul>
+                    <li>ゲームデータは**サーバーが再起動するとリセットされます**。永続的な保存は保証されません。</li>
+                    <li>セキュリティは考慮されていません。重要な個人情報は入力しないでください。</li>
+                    <li>開発中のため、バグや予期せぬ動作がある場合があります。</li>
+                    <li>このゲームは無料で、実際の金銭は一切関わりません。</li>
+                </ul>
+                <button id="close-warning-modal">理解しました</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
