@@ -4,257 +4,747 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>オンラインカジノ＆領土戦争ゲーム</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* ダークブルー */
+            color: #e2e8f0; /* 薄いグレー */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .game-container {
+            background-color: #2d3748; /* 暗いグレー */
+            border-radius: 1.5rem; /* 角を丸く */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            width: 800px;
+            overflow: hidden; /* 子要素がはみ出さないように */
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background-color: #4a5568; /* ヘッダーの背景色 */
+            padding: 1rem;
+            border-bottom-left-radius: 1.5rem; /* 左下を丸く */
+            border-bottom-right-radius: 1.5rem; /* 右下を丸く */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* 小さい画面で折り返す */
+        }
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem; /* 折り返した時のマージン */
+        }
+        .user-icon-display {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px; /* 真円 */
+            background-color: #718096; /* アイコン背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem; /* 絵文字サイズ */
+            overflow: hidden; /* 画像がはみ出さないように */
+        }
+        .user-icon-display img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .tab-buttons {
+            display: flex;
+            justify-content: center;
+            background-color: #1a202c;
+            padding: 0.5rem;
+            border-top-left-radius: 1.5rem;
+            border-top-right-radius: 1.5rem;
+            margin-top: 1rem;
+        }
+        .tab-button {
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            background-color: #4a5568;
+            color: #cbd5e0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            margin: 0 0.25rem;
+            white-space: nowrap; /* ボタン内のテキストが改行されないように */
+        }
+        .tab-button:hover:not(.active) {
+            background-color: #6a7486;
+        }
+        .tab-button.active {
+            background-color: #63b3ed; /* アクティブなタブの色 */
+            color: #1a202c;
+        }
+        .tab-content {
+            padding: 1.5rem;
+            background-color: #2d3748;
+            display: none;
+            flex-direction: column; /* 内容を縦に並べる */
+            gap: 1rem;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+        .game-section {
+            background-color: #4a5568;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .game-section h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #63b3ed;
+            margin-bottom: 1rem;
+        }
+        input[type="number"], input[type="text"] {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: #e2e8f0;
+            width: 100%;
+            max-width: 150px;
+            text-align: center;
+        }
+        button {
+            background-color: #63b3ed;
+            color: #1a202c;
+            font-weight: 700;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s, transform 0.1s;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: none;
+        }
+        button:hover:not(:disabled) {
+            background-color: #4299e1;
+            transform: translateY(-2px);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+        }
+        button:disabled {
+            background-color: #718096;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .message {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #cbd5e0;
+        }
+
+        /* スロットリール */
+        .reels {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .reel {
+            background-color: #2d3748;
+            border: 2px solid #63b3ed;
+            border-radius: 0.75rem;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            font-weight: 700;
+            overflow: hidden;
+        }
+
+        /* お仕事 */
+        .typing-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        #current-word {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        #typing-input {
+            font-size: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            max-width: 300px;
+        }
+        .bonus-section {
+            background-color: #5a67d8; /* 紫 */
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-top: 1.5rem;
+        }
+        .bonus-section h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        /* 軍事基地 */
+        .military-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .unit-option {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .unit-option h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .unit-option select {
+            background-color: #4a5568;
+            border: 1px solid #63b3ed;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            color: #e2e8f0;
+            width: 100%;
+        }
+        .unit-stats {
+            font-size: 0.875rem;
+            color: #cbd5e0;
+        }
+
+        /* バトルセクション */
+        .battle-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .unit-selection, .player-selection {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .unit-buttons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .unit-select-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.5rem;
+        }
+        .unit-select-button span {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .player-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #4a5568;
+            border-radius: 0.5rem;
+            background-color: #1a202c;
+        }
+        .player-list li {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #4a5568;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .player-list li:last-child {
+            border-bottom: none;
+        }
+        .player-list li:hover {
+            background-color: #3e4a5e;
+        }
+        .player-list li.selected {
+            background-color: #63b3ed;
+            color: #1a202c;
+            font-weight: 700;
+        }
+        .player-detail {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .icon-in-list {
+            width: 24px;
+            height: 24px;
+            border-radius: 9999px;
+            background-color: #718096;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            overflow: hidden;
+        }
+        .icon-in-list img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ランキング */
+        .ranking-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background-color: #1a202c;
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .ranking-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid #4a5568;
+            font-size: 1rem;
+        }
+        .ranking-list li:last-child {
+            border-bottom: none;
+        }
+        .ranking-list li .rank {
+            font-weight: 700;
+            color: #63b3ed;
+            width: 30px;
+            text-align: left;
+        }
+        .ranking-list li .name {
+            flex-grow: 1;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .ranking-list li .score, .ranking-list li .territories {
+            width: 80px;
+            text-align: right;
+            font-weight: 600;
+        }
+        .icon-in-ranking {
+            width: 24px;
+            height: 24px;
+            border-radius: 9999px;
+            background-color: #718096;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            overflow: hidden;
+        }
+        .icon-in-ranking img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 設定 */
+        .setting-option {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .icon-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+        .icon-selector .icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            background-color: #4a5568;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s, transform 0.1s;
+        }
+        .icon-selector .icon:hover {
+            transform: scale(1.1);
+        }
+        .icon-selector .icon.selected {
+            border-color: #63b3ed;
+            box-shadow: 0 0 8px rgba(99, 179, 237, 0.6);
+        }
+        .icon-selector .icon input[type="file"] {
+            display: none; /* ファイル選択ボタンを隠す */
+        }
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .upload-area label {
+            background-color: #63b3ed;
+            color: #1a202c;
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .upload-area label:hover {
+            background-color: #4299e1;
+        }
+        /* 警告モーダル */
+        .warning-modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.7); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .warning-modal.active {
+            display: flex;
+        }
+        .warning-modal-content {
+            background-color: #2d3748;
+            margin: auto;
+            padding: 2rem;
+            border: 1px solid #63b3ed;
+            border-radius: 1rem;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: #e2e8f0;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .warning-modal-content h2 {
+            color: #ed8936; /* オレンジ */
+            margin-bottom: 1rem;
+        }
+        .warning-modal-content p {
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        /* パチンコ */
+        #pachinko-canvas {
+            background-color: #1a202c;
+            border: 2px solid #63b3ed;
+            border-radius: 0.75rem;
+            display: block; /* 余分なスペースを削除 */
+            margin: 0 auto 1rem auto; /* 中央寄せと下マージン */
+            touch-action: none; /* タッチイベントのデフォルト動作を無効化 */
+            width: 100%; /* 親要素の幅いっぱいに */
+            max-width: 400px; /* 最大幅 */
+        }
+        .pachinko-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        #pachinko-bet-input {
+            max-width: 100px; /* 入力欄の幅を調整 */
+        }
+    </style>
 </head>
-<body>
+<body class="p-4">
     <div class="game-container">
-        <header>
+        <div class="header">
             <div class="player-info">
-                <span id="user-icon-display" class="player-icon">😀</span>
-                <span id="username-display" class="player-name">ゲスト</span>
-                <span class="player-coins">所持コイン: <span id="coins">0</span>C</span>
-                <span class="player-territories">領土: <span id="player-territories">0</span></span>
+                <div id="user-icon-display" class="user-icon-display">😀</div>
+                <span id="username-display" class="text-xl font-semibold">ゲスト</span>
             </div>
-            <h1>オンラインカジノ＆領土戦争</h1>
-        </header>
-
-        <main>
-            <div class="tabs">
-                <button class="tab-button active" data-tab="casino">カジノ</button>
-                <button class="tab-button" data-tab="work">お仕事</button>
-                <button class="tab-button" data-tab="military">軍事基地</button>
-                <button class="tab-button" data-tab="battle">バトル</button>
-                <button class="tab-button" data-tab="ranking">ランキング</button>
-                <button class="tab-button" data-tab="settings">設定</button>
-            </div>
-
-            <div id="casino" class="tab-content active">
-                <h2>スロットゲーム</h2>
-                <div class="slot-machine">
-                    <div class="reels">
-                        <div class="reel" id="reel1"></div>
-                        <div class="reel" id="reel2"></div>
-                        <div class="reel" id="reel3"></div>
-                    </div>
-                    <div class="slot-controls">
-                        <label for="bet-amount">賭け金:</label>
-                        <input type="number" id="bet-amount" value="10" min="1" step="1">
-                        <button id="spin-button">スピン！</button>
-                    </div>
-                    <p id="spin-message" class="game-message">リールを回してコインを増やそう！</p>
-                    <div class="spin-direction-options">
-                        <label>
-                            <input type="radio" name="spin-direction" id="spin-direction-normal" value="normal" checked>
-                            通常スピン
-                        </label>
-                        <label>
-                            <input type="radio" name="spin-direction" id="spin-direction-reverse" value="reverse">
-                            逆回転スピン (隠し要素)
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div id="work" class="tab-content">
-                <h2>お仕事セクション</h2>
-                <p>タイピングゲームでお金を稼ごう！</p>
-                <div class="work-section">
-                    <p id="current-word" class="highlight-word"></p>
-                    <input type="text" id="typing-input" placeholder="ここに単語を入力">
-                    <button id="next-typing-word-button">次の単語</button>
-                    <p id="work-message" class="game-message"></p>
-                    <div class="daily-bonus-section">
-                        <h3>デイリーボーナス</h3>
-                        <p id="daily-bonus-message">毎日ログインしてボーナスをゲット！</p>
-                        <button id="claim-bonus-button">ボーナスを受け取る</button>
-                    </div>
-                    <p class="daily-coins-earned">今日の獲得コイン: <span id="daily-coins-earned">0</span>/<span id="daily-coin-limit">500</span>C</p>
-                </div>
-            </div>
-
-            <div id="military" class="tab-content">
-                <h2>軍事基地</h2>
-                <p>領土とユニットを増やして国力を強化しよう！</p>
-                <p id="military-message" class="game-message">新たな領土や強力なユニットを手に入れよう！</p>
-
-                <div class="military-section">
-                    <h3>領土</h3>
-                    <div class="territory-buy">
-                        <p>領土購入: 1000C</p>
-                        <button id="buy-territory-button">領土を購入</button>
-                    </div>
-
-                    <h3>ユニット</h3>
-                    <div class="unit-buy-grid">
-                        <div class="unit-option">
-                            <h4>歩兵</h4>
-                            <p>保有数: <span id="infantry-count-1">0</span> (<span id="infantry-cooldown-1">0</span>体クールダウン中)</p>
-                            <label>レベル:
-                                <select class="unit-grade-select" data-unit-type="infantry">
-                                    <option value="1">Lv.1 (100C)</option>
-                                    <option value="2">Lv.2 (200C)</option>
-                                    <option value="3">Lv.3 (400C)</option>
-                                </select>
-                            </label>
-                            <label>数:
-                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
-                            </label>
-                            <button class="buy-unit-button" data-unit-type="infantry">購入</button>
-                        </div>
-                        <div class="unit-option">
-                            <h4>装甲車</h4>
-                            <p>保有数: <span id="armored_car-count-1">0</span> (<span id="armored_car-cooldown-1">0</span>体クールダウン中)</p>
-                            <label>レベル:
-                                <select class="unit-grade-select" data-unit-type="armored_car">
-                                    <option value="1">Lv.1 (500C)</option>
-                                    <option value="2">Lv.2 (1000C)</option>
-                                    <option value="3">Lv.3 (2000C)</option>
-                                </select>
-                            </label>
-                            <label>数:
-                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
-                            </label>
-                            <button class="buy-unit-button" data-unit-type="armored_car">購入</button>
-                        </div>
-                        <div class="unit-option">
-                            <h4>戦車</h4>
-                            <p>保有数: <span id="tank-count-1">0</span> (<span id="tank-cooldown-1">0</span>体クールダウン中)</p>
-                            <label>レベル:
-                                <select class="unit-grade-select" data-unit-type="tank">
-                                    <option value="1">Lv.1 (2000C)</option>
-                                    <option value="2">Lv.2 (4000C)</option>
-                                    <option value="3">Lv.3 (8000C)</option>
-                                </select>
-                            </label>
-                            <label>数:
-                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
-                            </label>
-                            <button class="buy-unit-button" data-unit-type="tank">購入</button>
-                        </div>
-                        <div class="unit-option">
-                            <h4>戦闘機</h4>
-                            <p>保有数: <span id="fighter-count-1">0</span> (<span id="fighter-cooldown-1">0</span>体クールダウン中)</p>
-                            <label>レベル:
-                                <select class="unit-grade-select" data-unit-type="fighter">
-                                    <option value="1">Lv.1 (5000C)</option>
-                                    <option value="2">Lv.2 (10000C)</option>
-                                    <option value="3">Lv.3 (20000C)</option>
-                                </select>
-                            </label>
-                            <label>数:
-                                <input type="number" class="buy-quantity-input" value="1" min="1" max="99">
-                            </label>
-                            <button class="buy-unit-button" data-unit-type="fighter">購入</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="battle" class="tab-content">
-                <h2>バトルセクション</h2>
-                <p id="battle-message" class="game-message">敵プレイヤーを攻撃して領土やコインを奪おう！</p>
-                <div class="battle-controls">
-                    <div class="unit-select-area">
-                        <h3>攻撃ユニット選択</h3>
-                        <div class="unit-select-grid">
-                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="1">
-                                歩兵 Lv.1 (<span id="infantry-available-1">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="2">
-                                歩兵 Lv.2 (<span id="infantry-available-2">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="3">
-                                歩兵 Lv.3 (<span id="infantry-available-3">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="1">
-                                装甲車 Lv.1 (<span id="armored_car-available-1">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="2">
-                                装甲車 Lv.2 (<span id="armored_car-available-2">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="3">
-                                装甲車 Lv.3 (<span id="armored_car-available-3">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="1">
-                                戦車 Lv.1 (<span id="tank-available-1">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="2">
-                                戦車 Lv.2 (<span id="tank-available-2">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="3">
-                                戦車 Lv.3 (<span id="tank-available-3">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="1">
-                                戦闘機 Lv.1 (<span id="fighter-available-1">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="2">
-                                戦闘機 Lv.2 (<span id="fighter-available-2">0</span>)
-                            </button>
-                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="3">
-                                戦闘機 Lv.3 (<span id="fighter-available-3">0</span>)
-                            </button>
-                        </div>
-                        <p>選択中のユニット: <span id="selected-unit-display">なし</span></p>
-                        <label for="deploy-quantity-input">出撃数: </label>
-                        <input type="number" id="deploy-quantity-input" value="1" min="1">
-                    </div>
-
-                    <div class="target-select-area">
-                        <h3>攻撃対象選択</h3>
-                        <ul id="player-list">
-                            </ul>
-                        <p>選択中の対象: <span id="selected-player-display">なし</span></p>
-                        <button id="attack-button">攻撃開始！</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="ranking" class="tab-content">
-                <h2>ランキング</h2>
-                <p id="your-rank-display">あなたの現在の順位: -位</p>
-                <ul id="ranking-list">
-                    </ul>
-            </div>
-
-            <div id="settings" class="tab-content">
-                <h2>設定</h2>
-                <div class="setting-item">
-                    <h3>アカウント名</h3>
-                    <input type="text" id="username-input" placeholder="新しいアカウント名">
-                    <button id="save-username-button">変更を保存</button>
-                    <p id="username-message" class="game-message"></p>
-                </div>
-                <div class="setting-item">
-                    <h3>アイコン変更</h3>
-                    <input type="file" id="icon-upload-input" accept="image/*">
-                    <div class="icon-selector">
-                        <div class="icon" data-icon="😀">😀</div>
-                        <div class="icon" data-icon="😎">😎</div>
-                        <div class="icon" data-icon="🤖">🤖</div>
-                        <div class="icon" data-icon="👽">👽</div>
-                        <div class="icon" data-icon="😇">😇</div>
-                        <div class="icon" data-icon="😈">😈</div>
-                    </div>
-                    <p class="game-message">アイコンをアップロードするか、絵文字を選択してください。</p>
-                </div>
-            </div>
-        </main>
-
-        <div id="warning-modal" class="modal">
-            <div class="modal-content">
-                <h2>重要なお知らせ</h2>
-                <p>このゲームはデモ版であり、以下の点にご注意ください：</p>
-                <ul>
-                    <li>ゲームデータは**サーバーが再起動するとリセットされます**。永続的な保存は保証されません。</li>
-                    <li>セキュリティは考慮されていません。重要な個人情報は入力しないでください。</li>
-                    <li>開発中のため、バグや予期せぬ動作がある場合があります。</li>
-                    <li>このゲームは無料で、実際の金銭は一切関わりません。</li>
-                </ul>
-                <button id="close-warning-modal">理解しました</button>
+            <div class="player-stats flex-grow text-right md:text-center">
+                <span class="text-lg font-bold mr-4">所持コイン: <span id="coins">0</span>C</span>
+                <span class="text-lg font-bold">領土: <span id="player-territories">0</span></span>
             </div>
         </div>
 
+        <div class="tab-buttons">
+            <button class="tab-button active" data-tab="casino">カジノ</button>
+            <button class="tab-button" data-tab="work">お仕事</button>
+            <button class="tab-button" data-tab="military">軍事基地</button>
+            <button class="tab-button" data-tab="battle">バトル</button>
+            <button class="tab-button" data-tab="pachinko">パチンコ</button> <!-- 新しいタブボタン -->
+            <button class="tab-button" data-tab="ranking">ランキング</button>
+            <button class="tab-button" data-tab="settings">設定</button>
+        </div>
+
+        <div id="casino" class="tab-content active">
+            <div class="game-section">
+                <h2>スロットゲーム</h2>
+                <div class="reels">
+                    <div id="reel1" class="reel">?</div>
+                    <div id="reel2" class="reel">?</div>
+                    <div id="reel3" class="reel">?</div>
+                </div>
+                <div class="flex items-center justify-center gap-4 mb-4">
+                    <label for="bet-amount" class="text-lg">賭け金:</label>
+                    <input type="number" id="bet-amount" value="10" min="10" step="10">
+                    <button id="spin-button">スピン!</button>
+                </div>
+                <p id="spin-message" class="message">リールを回してコインを増やそう!</p>
+                <div class="mt-4">
+                    <label class="inline-flex items-center mr-4">
+                        <input type="radio" name="spin-direction" value="normal" id="spin-direction-normal" checked class="form-radio text-blue-500">
+                        <span class="ml-2">通常スピン</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="spin-direction" value="reverse" id="spin-direction-reverse" class="form-radio text-blue-500">
+                        <span class="ml-2">逆回転スピン (隠し要素)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="work" class="tab-content">
+            <div class="game-section">
+                <h2>お仕事</h2>
+                <div class="typing-area">
+                    <p class="text-lg mb-2">表示された単語を正確に入力しよう！</p>
+                    <p id="current-word" class="font-mono"></p>
+                    <input type="text" id="typing-input" class="text-center">
+                    <button id="next-typing-word-button">次の単語</button>
+                    <p id="work-message" class="message"></p>
+                    <p class="text-sm text-gray-400">今日の獲得コイン: <span id="daily-coins-earned">0</span>/<span id="daily-coin-limit">500</span></p>
+                </div>
+
+                <div class="bonus-section mt-6">
+                    <h3>デイリーボーナス</h3>
+                    <p id="daily-bonus-message" class="mb-4 text-sm"></p>
+                    <button id="claim-bonus-button">ボーナスを受け取る</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="military" class="tab-content">
+            <div class="game-section">
+                <h2>軍事基地</h2>
+                <p id="military-message" class="message mb-4">領土を拡大し、軍隊を強化しよう！</p>
+
+                <div class="military-options">
+                    <div class="unit-option">
+                        <h3>領土購入</h3>
+                        <p class="text-gray-300">コスト: 100,000C</p>
+                        <p class="text-gray-300">クールダウン: 5分</p>
+                        <button id="buy-territory-button">領土を購入</button>
+                    </div>
+
+                    <!-- 歩兵 -->
+                    <div class="unit-option">
+                        <h3>歩兵</h3>
+                        <p class="unit-stats">保有: <span id="infantry-count-1">0</span> (<span id="infantry-available-1">0</span> 使用可能)</p>
+                        <p class="unit-stats">クールダウン中: <span id="infantry-cooldown-1">0</span></p>
+                        <select class="unit-grade-select">
+                            <option value="1">Lv.1 (100C)</option>
+                            <option value="2">Lv.2 (200C)</option>
+                            <option value="3">Lv.3 (400C)</option>
+                        </select>
+                        <input type="number" value="1" min="1" class="buy-quantity-input">
+                        <button class="buy-unit-button" data-unit-type="infantry">購入</button>
+                    </div>
+
+                    <!-- 装甲車 -->
+                    <div class="unit-option">
+                        <h3>装甲車</h3>
+                        <p class="unit-stats">保有: <span id="armored_car-count-1">0</span> (<span id="armored_car-available-1">0</span> 使用可能)</p>
+                        <p class="unit-stats">クールダウン中: <span id="armored_car-cooldown-1">0</span></p>
+                        <select class="unit-grade-select">
+                            <option value="1">Lv.1 (500C)</option>
+                            <option value="2">Lv.2 (1000C)</option>
+                            <option value="3">Lv.3 (2000C)</option>
+                        </select>
+                        <input type="number" value="1" min="1" class="buy-quantity-input">
+                        <button class="buy-unit-button" data-unit-type="armored_car">購入</button>
+                    </div>
+
+                    <!-- 戦車 -->
+                    <div class="unit-option">
+                        <h3>戦車</h3>
+                        <p class="unit-stats">保有: <span id="tank-count-1">0</span> (<span id="tank-available-1">0</span> 使用可能)</p>
+                        <p class="unit-stats">クールダウン中: <span id="tank-cooldown-1">0</span></p>
+                        <select class="unit-grade-select">
+                            <option value="1">Lv.1 (2000C)</option>
+                            <option value="2">Lv.2 (4000C)</option>
+                            <option value="3">Lv.3 (8000C)</option>
+                        </select>
+                        <input type="number" value="1" min="1" class="buy-quantity-input">
+                        <button class="buy-unit-button" data-unit-type="tank">購入</button>
+                    </div>
+
+                    <!-- 戦闘機 -->
+                    <div class="unit-option">
+                        <h3>戦闘機</h3>
+                        <p class="unit-stats">保有: <span id="fighter-count-1">0</span> (<span id="fighter-available-1">0</span> 使用可能)</p>
+                        <p class="unit-stats">クールダウン中: <span id="fighter-cooldown-1">0</span></p>
+                        <select class="unit-grade-select">
+                            <option value="1">Lv.1 (5000C)</option>
+                            <option value="2">Lv.2 (10000C)</option>
+                            <option value="3">Lv.3 (20000C)</option>
+                        </select>
+                        <input type="number" value="1" min="1" class="buy-quantity-input">
+                        <button class="buy-unit-button" data-unit-type="fighter">購入</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="battle" class="tab-content">
+            <div class="game-section">
+                <h2>バトルセクション</h2>
+                <p id="battle-message" class="message mb-4">攻撃するユニットとプレイヤーを選択してください。</p>
+
+                <div class="battle-options">
+                    <div class="unit-selection">
+                        <h3>攻撃ユニット選択</h3>
+                        <div class="unit-buttons-grid">
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="1">歩兵 Lv.1 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="2">歩兵 Lv.2 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="infantry" data-unit-grade="3">歩兵 Lv.3 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="1">装甲車 Lv.1 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="2">装甲車 Lv.2 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="armored_car" data-unit-grade="3">装甲車 Lv.3 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="1">戦車 Lv.1 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="2">戦車 Lv.2 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="tank" data-unit-grade="3">戦車 Lv.3 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="1">戦闘機 Lv.1 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="2">戦闘機 Lv.2 (<span>0</span>)</button>
+                            <button class="unit-select-button" data-unit-type="fighter" data-unit-grade="3">戦闘機 Lv.3 (<span>0</span>)</button>
+                        </div>
+                        <p class="mt-2">選択中のユニット: <span id="selected-unit-display">なし</span></p>
+                    </div>
+
+                    <div class="player-selection">
+                        <h3>攻撃対象選択</h3>
+                        <div class="player-list" id="player-list">
+                            <li>他のプレイヤーをロード中...</li>
+                        </div>
+                        <p class="mt-2">選択中の対象: <span id="selected-player-display">なし</span></p>
+                        <label for="deploy-quantity-input" class="mt-2">出撃数:</label>
+                        <input type="number" id="deploy-quantity-input" value="1" min="1">
+                        <button id="attack-button" class="mt-4">攻撃開始!</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pachinko" class="tab-content"> <!-- 新しいタブコンテンツ -->
+            <div class="game-section">
+                <h2>パチンコ</h2>
+                <canvas id="pachinko-canvas"></canvas>
+                <div class="pachinko-controls">
+                    <label for="pachinko-bet-input" class="text-lg">賭け金:</label>
+                    <input type="number" id="pachinko-bet-input" value="100" min="10">
+                    <button id="pachinko-spin-button">ボールを落とす</button>
+                    <p id="pachinko-message" class="message">賭け金を入力してボールを落とそう！</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="ranking" class="tab-content">
+            <div class="game-section">
+                <h2>ランキング</h2>
+                <p id="your-rank-display" class="message mb-4">あなたの現在の順位: ロード中</p>
+                <ul id="ranking-list" class="ranking-list">
+                    <li>ランキングをロード中...</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="settings" class="tab-content">
+            <div class="game-section">
+                <h2>設定</h2>
+                <div class="setting-option">
+                    <h3>アカウント名</h3>
+                    <input type="text" id="username-input" placeholder="新しいアカウント名を入力">
+                    <button id="save-username-button">アカウント名を変更</button>
+                    <p id="username-message" class="message"></p>
+                </div>
+                <div class="setting-option">
+                    <h3>アイコン設定</h3>
+                    <div class="icon-selector">
+                        <span class="icon" data-icon="😀">😀</span>
+                        <span class="icon" data-icon="😎">😎</span>
+                        <span class="icon" data-icon="😇">😇</span>
+                        <span class="icon" data-icon="👽">👽</span>
+                        <span class="icon" data-icon="�">🤖</span>
+                        <span class="icon" data-icon="👺">👺</span>
+                        <label for="icon-upload-input" class="upload-area">
+                            <span>画像アイコンをアップロード</span>
+                            <input type="file" id="icon-upload-input" accept="image/*">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 警告モーダル -->
+    <div id="warning-modal" class="warning-modal">
+        <div class="warning-modal-content">
+            <span id="close-warning-modal" class="close-button">&times;</span>
+            <h2>重要な警告！</h2>
+            <p>このゲームのデータは現在、サーバーのメモリ内に保存されています。そのため、</p>
+            <p><strong>サーバーが再起動すると、全てのプレイヤーデータ（コイン、領土、ユニットなど）がリセットされます。</strong></p>
+            <p>本格的なデータ永続化には、データベース（PostgreSQLなど）の導入が必要です。</p>
+            <p>ご理解の上、ゲームをお楽しみください。</p>
+        </div>
     </div>
 
     <script src="script.js"></script>
