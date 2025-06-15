@@ -202,3 +202,16 @@ app.post('/api/battle', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+const express = require('express');
+const cors = require('cors'); // 追加
+
+const app = express();
+
+// ★★★ ここに追加 ★★★
+app.use(cors()); // 全てのリクエストを許可する場合
+// または、特定のオリジンのみを許可する場合
+// app.use(cors({ origin: 'https://ak-game-client.onrender.com' }));
+// ★★★ ここまで ★★★
+
+// ... (既存のルートハンドラなど) ...
