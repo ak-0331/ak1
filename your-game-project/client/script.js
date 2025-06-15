@@ -1,4 +1,7 @@
 // client/script.js
+// このファイルは、ゲームのクライアントサイドロジック、UI操作、
+// そしてサーバーとの非同期通信を実装します。
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- UI要素の取得 ---
     const tabs = document.querySelectorAll('.tab-button');
@@ -78,11 +81,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastTerritoryPurchaseTime = 0; // 領土購入のクールダウン用
 
     // --- 新しく追加する変数 ---
-    let currentPlayerId = null; // ★重要: 現在のプレイヤーのIDをサーバーから取得して保持します
+    let currentPlayerId = null; // 現在のプレイヤーのIDをサーバーから取得して保持します
 
-    // --- サーバーのURL (デプロイ後にここをRenderのWeb Serviceの公開URLに置き換える！) ---
-    const SERVER_URL = 'https://ak-game-server.onrender.com';
-    
+    // --- サーバーのURL ---
+    // ★★★★ ここをあなたのRenderでデプロイしたサーバーの公開URLに置き換えてください！ ★★★★
+    const SERVER_URL = 'https://ak-game-server.onrender.com'; 
+    // 例: const SERVER_URL = 'https://my-game-server-abc12.onrender.com';
+
+
     // --- プレイヤー以外のユーザーデータ (サーバーから取得する) ---
     let otherPlayers = [];
 
@@ -269,13 +275,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // プレイヤーリストの更新
-        await fetchOtherPlayers(); // 最新のプレイヤーデータを取得
+        await fetchOtherPlayers(); // 最新の他のプレイヤーデータを取得
 
         playerList.innerHTML = '';
-        if (otherPlayers.length === 0) {
-            playerList.innerHTML = '<li>現在攻撃可能なプレイヤーがいません。</li>';
+        // BOTを除外してバトル対象のプレイヤーリストを生成
+        const humanPlayersForBattle = otherPlayers.filter(p => !p.id.startsWith('bot_'));
+
+        if (humanPlayersForBattle.length === 0) {
+            // メッセージを修正: 人間プレイヤーがいない場合の表示
+            playerList.innerHTML = '<li>現在攻撃可能な他の人間プレイヤーがいません。</li>';
         } else {
-            otherPlayers.forEach(player => {
+            humanPlayersForBattle.forEach(player => { // フィルタリングされたリストを使用
                 const li = document.createElement('li');
                 li.dataset.playerId = player.id;
                 li.innerHTML = `<span class="player-detail">
@@ -337,7 +347,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to load player data: ${response.statusText}`);
+                // HTTPエラーの場合、詳細なエラーメッセージを取得
+                let errorDetails = `Status: ${response.status} ${response.statusText}`;
+                try {
+                    const errorJson = await response.json();
+                    errorDetails += ` - ${errorJson.message || JSON.stringify(errorJson)}`;
+                } catch (jsonError) {
+                    // JSONパースに失敗した場合はそのまま
+                    errorDetails += ` - (Non-JSON response or empty response)`;
+                }
+                throw new Error(`Failed to load player data: ${errorDetails}`);
             }
 
             const data = await response.json();
@@ -434,7 +453,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to save player data: ${response.statusText}`);
+                let errorDetails = `Status: ${response.status} ${response.statusText}`;
+                try {
+                    const errorJson = await response.json();
+                    errorDetails += ` - ${errorJson.message || JSON.stringify(errorJson)}`;
+                } catch (jsonError) {
+                    errorDetails += ` - (Non-JSON response or empty response)`;
+                }
+                throw new Error(`Failed to save player data: ${errorDetails}`);
             }
 
             const result = await response.json();
@@ -449,7 +475,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${SERVER_URL}/api/players`);
             if (!response.ok) {
-                throw new Error(`Failed to fetch other players: ${response.statusText}`);
+                let errorDetails = `Status: ${response.status} ${response.statusText}`;
+                try {
+                    const errorJson = await response.json();
+                    errorDetails += ` - ${errorJson.message || JSON.stringify(errorJson)}`;
+                } catch (jsonError) {
+                    errorDetails += ` - (Non-JSON response or empty response)`;
+                }
+                throw new Error(`Failed to fetch other players: ${errorDetails}`);
             }
             const allPlayers = await response.json();
             // 自分以外のプレイヤーだけをフィルタリング
@@ -589,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 軍事基地 - 領土購入
     buyTerritoryButton.addEventListener('click', async () => {
+        // ★★★ 領土購入コストを100,000に修正 ★★★
         const cost = 100000;
         const now = Date.now();
         const cooldown = 5 * 60 * 1000; // 5分クールダウン
@@ -732,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             updateUI(); // UIを更新
             // saveGameData()はバトルAPIの応答に含まれるので、ここでは必須ではないが、念のため実行してもよい
-            // await saveGameData();
+            // await saveGameData(); 
             attackButton.disabled = false;
 
         } catch (error) {
@@ -762,7 +796,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // BOTプレイヤーと統合（otherPlayersにはBOTも含まれる想定）
-        const allPlayers = [playerData, ...otherPlayers];
+        // BOTを除外してランキングを生成
+        const allPlayers = [playerData, ...otherPlayers.filter(p => !p.id.startsWith('bot_'))];
 
         // コイン数で降順にソート、同点の場合は領土数でソート
         allPlayers.sort((a, b) => {
@@ -831,6 +866,16 @@ document.addEventListener('DOMContentLoaded', () => {
             updateUI();
             await saveGameData(); // ★サーバーに保存★
         });
+    });
+
+    spinDirectionNormal.addEventListener('change', async () => {
+        spinDirection = 'normal';
+        await saveGameData();
+    });
+
+    spinDirectionReverse.addEventListener('change', async () => {
+        spinDirection = 'reverse';
+        await saveGameData();
     });
 
 
