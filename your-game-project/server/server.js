@@ -1,20 +1,20 @@
-// server/server.js - 修正版
+// server/server.js - 最終修正版
 // このファイルは、Node.jsとExpress.jsを使ってゲームのバックエンドサービスを提供します。
 // プレイヤーデータの管理、ゲームロジック（バトルなど）、APIエンドポイントを含みます。
 
-// 必要なモジュールを読み込む
+// 1. 必要なモジュールを読み込む（重複なく一度だけ）
 const express = require('express');
 const cors = require('cors'); // CORS（クロスオリジンリソース共有）を許可するために必要
-const path = require('path'); // ファイルパス操作のために必要（ここではplayers.jsonのパス指定のみに使用）
-const fs = require('fs'); // ファイルシステム操作のために必要（players.jsonの読み書きに使用）
+const path = require('path'); // ファイルパス操作のために必要
+const fs = require('fs');     // ファイルシステム操作のために必要（メモリ内DBの補助）
 
-// Expressアプリケーションのインスタンスを作成
+// 2. Expressアプリケーションのインスタンスを作成（一度だけ）
 const app = express();
 
 // Renderが提供するPORT環境変数を使用し、それがなければローカル開発用に3000番ポートを使用
 const PORT = process.env.PORT || 3000;
 
-// --- ミドルウェアの設定（順序が重要です！） ---
+// --- 3. ミドルウェアの設定（順序が重要です！） ---
 // CORSミドルウェアを一番最初に配置することで、全てのリクエストに対してCORSヘッダーが適用されます。
 // 本番環境では、クライアントの公開URLのみを許可するよう厳密に設定することを推奨します。
 // 例: app.use(cors({ origin: 'https://ak-game-client.onrender.com' }));
@@ -26,7 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-// --- 簡易データベース（メモリ内） ---
+// --- 4. 簡易データベース（メモリ内） ---
 // 注意：このデータベースはサーバーが再起動するたびにリセットされます！
 // 本番運用には、Renderが提供するPostgreSQLやMongoDBのような永続的な外部データベースサービスが必須です。
 let playersData = {};
@@ -64,7 +64,7 @@ function generateOtherPlayers() {
 generateOtherPlayers();
 
 
-// --- APIエンドポイントの定義 ---
+// --- 5. APIエンドポイントの定義 ---
 
 // ルートパス('/')へのGETリクエストに対するハンドラ
 // サーバーが正常に動作しているか確認するためのシンプルなエンドポイントです。
