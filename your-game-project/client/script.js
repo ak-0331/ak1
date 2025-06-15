@@ -81,9 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPlayerId = null; // ★重要: 現在のプレイヤーのIDをサーバーから取得して保持します
 
     // --- サーバーのURL (デプロイ後にここをRenderのWeb Serviceの公開URLに置き換える！) ---
-    const SERVER_URL = 'YOUR_RENDER_SERVER_PUBLIC_URL_HERE'; // 例: 'https://your-server-name.onrender.com'
-    // ★★★★ 上の行をあなたのRenderでデプロイしたサーバーの公開URLに置き換えてください！ ★★★★
-
+    const SERVER_URL = 'https://ak-game-server.onrender.com';
+    
     // --- プレイヤー以外のユーザーデータ (サーバーから取得する) ---
     let otherPlayers = [];
 
@@ -590,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 軍事基地 - 領土購入
     buyTerritoryButton.addEventListener('click', async () => {
-        const cost = 1000;
+        const cost = 100000;
         const now = Date.now();
         const cooldown = 5 * 60 * 1000; // 5分クールダウン
 
