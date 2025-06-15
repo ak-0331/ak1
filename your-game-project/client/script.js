@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- サーバーのURL ---
     // ★★★★ ここをあなたのRenderでデプロイしたサーバーの公開URLに置き換えてください！ ★★★★
-    const SERVER_URL = 'https://ak-game-server.onrender.com'; 
+    const SERVER_URL = 'YOUR_RENDER_SERVER_PUBLIC_URL_HERE'; 
     // 例: const SERVER_URL = 'https://my-game-server-abc12.onrender.com';
 
 
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let otherPlayers = [];
 
     // --- ゲーム定数 ---
-    const slotSymbols = ['🍒', '🍋', '🔔', '💎', '⭐'];
+    const slotSymbols = ['🍒', '🍋', '�', '💎', '⭐'];
     const typingWords = ["apple", "banana", "cherry", "grape", "lemon", "orange", "strawberry", "watermelon", "pineapple", "kiwi"];
     let currentWord = '';
     let typingIndex = 0;
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             userIconDisplay.textContent = userIcon;
             userIconDisplay.innerHTML = `<span>${userIcon}</span>`; // 絵文字をspanで囲む
         }
-        usernameInput.value = username; // 設定画面のユーザー名入力欄も更新
+        // usernameInput.value = username; // 設定画面のユーザー名入力欄は、変更時のみユーザーが入力した値を使うため、ここでは更新しない
 
         // アイコン選択のハイライト
         document.querySelectorAll('.icon-selector .icon').forEach(iconElement => {
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
         warningModal.classList.remove('active');
     });
 
-    // --- ゲーム初期化とデータ読み込み (大幅に変更) ---
+    // --- ゲーム初期化とデータ読み込み ---
     async function loadGameData() {
         try {
             // ローカルストレージからユーザー名とアイコンを試行的に取得
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ゲームデータをサーバーに保存 (大幅に変更)
+    // ゲームデータをサーバーに保存 (アカウント名バグ修正のために強化)
     async function saveGameData() {
         if (!currentPlayerId) {
             console.warn("currentPlayerId is not set. Cannot save data.");
@@ -424,15 +424,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataToSave = {
             coins,
             playerTerritories,
-            username,
-            icon: userIcon, // サーバーのキー名に合わせる
+            username, // 現在のクライアントサイドのusernameをサーバーに送信
+            icon: userIcon, // 現在のクライアントサイドのuserIconをサーバーに送信
             spinDirection,
             lastSpinTime,
             lastWorkTime,
             dailyCoinsEarned,
-            lastBonusClaimDate, // ISO文字列のまま
+            lastBonusClaimDate,
             lastTerritoryPurchaseTime,
-            // unitsはcooldownsをISO文字列に変換して送る
             units: JSON.parse(JSON.stringify(units)) // ディープコピーして元データを壊さないように
         };
 
@@ -464,6 +463,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
+            // ★★★ サーバーから返された最新のプレイヤーデータでクライアントの状態を更新 ★★★
+            // これにより、サーバーが保存した正確なusernameとuserIconがクライアントに反映される
+            username = result.player.username;
+            userIcon = result.player.icon;
+            updateUI(); // UIを再更新して、サーバーの情報を反映
+            // ★★★ ここまで変更 ★★★
+
             // console.log("Game data saved successfully:", result.message);
         } catch (error) {
             console.error("Error saving game data:", error);
@@ -664,7 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (coins >= totalCost) {
                 coins -= totalCost;
                 if (!units[unitType]) units[unitType] = {};
-                if (!units[unitType][grade]) units[unitType][grade] = { count: 0, cooldowns: [] };
+                if (!units[unitType][grade]) units[type][grade] = { count: 0, cooldowns: [] };
                 units[unitType][grade].count += quantity;
                 militaryMessage.textContent = `${getUnitDisplayName(unitType)} Lv.${grade} を ${quantity}体購入しました！`;
                 updateUI();
@@ -766,7 +772,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             updateUI(); // UIを更新
             // saveGameData()はバトルAPIの応答に含まれるので、ここでは必須ではないが、念のため実行してもよい
-            // await saveGameData(); 
             attackButton.disabled = false;
 
         } catch (error) {
@@ -831,11 +836,12 @@ document.addEventListener('DOMContentLoaded', () => {
     saveUsernameButton.addEventListener('click', async () => {
         const newUsername = usernameInput.value.trim();
         if (newUsername && newUsername !== username) {
-            username = newUsername;
-            localStorage.setItem('localUsername', newUsername); // ローカルにも保存
+            username = newUsername; // ローカル変数をまず更新
+            localStorage.setItem('localUsername', newUsername); // ローカルストレージにも保存
             usernameMessage.textContent = "アカウント名を変更しました！";
-            updateUI();
-            await saveGameData(); // ★サーバーに保存★
+            // updateUI(); // ここではUIを更新しない。saveGameDataがサーバー応答後にUIを更新するため。
+            await saveGameData(); // サーバーに保存し、その中でusernameとUIが更新される
+            usernameInput.value = ''; // ★★★ 入力フィールドをクリア ★★★
         } else if (newUsername === username) {
             usernameMessage.textContent = "アカウント名は変更されていません。";
         } else {
