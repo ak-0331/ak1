@@ -50,6 +50,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedUnitGrade = null;
     let selectedPlayerId = null;
 
+    // パチンコ関連 (新要素)
+    const pachinkoCanvas = document.getElementById('pachinko-canvas');
+    const pachinkoCtx = pachinkoCanvas.getContext('2d');
+    const pachinkoSpinButton = document.getElementById('pachinko-spin-button');
+    const pachinkoBetInput = document.getElementById('pachinko-bet-input');
+    const pachinkoMessage = document.getElementById('pachinko-message');
+    let pachinkoBall = null; // ボールの状態
+    let pachinkoSlots = []; // 当たり判定のスロット
+    let pachinkoPegs = []; // 釘
+    const PACHINKO_BALL_RADIUS = 8;
+    const PACHINKO_GRAVITY = 0.5; // 物理エンジンの重力
+    const PACHINKO_BOUNCE = 0.6; // 跳ね返り係数
+
     // ランキング関連
     const rankingList = document.getElementById('ranking-list');
     const yourRankDisplay = document.getElementById('your-rank-display');
@@ -85,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- サーバーのURL ---
     // ★★★★ ここをあなたのRenderでデプロイしたサーバーの公開URLに置き換えてください！ ★★★★
-    const SERVER_URL = 'https://ak-game-server.onrender.com'; 
+    const SERVER_URL = 'https://ak-game-server.onrender.com';
     // 例: const SERVER_URL = 'https://my-game-server-abc12.onrender.com';
 
 
@@ -93,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let otherPlayers = [];
 
     // --- ゲーム定数 ---
-    const slotSymbols = ['🍒', '🍋', '�', '💎', '⭐'];
+    const slotSymbols = ['🍒', '🍋', '🔔', '💎', '⭐'];
     const typingWords = ["apple", "banana", "cherry", "grape", "lemon", "orange", "strawberry", "watermelon", "pineapple", "kiwi"];
     let currentWord = '';
     let typingIndex = 0;
@@ -133,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             userIconDisplay.textContent = userIcon;
             userIconDisplay.innerHTML = `<span>${userIcon}</span>`; // 絵文字をspanで囲む
         }
-        // usernameInput.value = username; // 設定画面のユーザー名入力欄は、変更時のみユーザーが入力した値を使うため、ここでは更新しない
 
         // アイコン選択のハイライト
         document.querySelectorAll('.icon-selector .icon').forEach(iconElement => {
@@ -463,14 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
-            // ★★★ サーバーから返された最新のプレイヤーデータでクライアントの状態を更新 ★★★
+            // サーバーから返された最新のプレイヤーデータでクライアントの状態を更新
             // これにより、サーバーが保存した正確なusernameとuserIconがクライアントに反映される
             username = result.player.username;
             userIcon = result.player.icon;
             updateUI(); // UIを再更新して、サーバーの情報を反映
-            // ★★★ ここまで変更 ★★★
 
-            // console.log("Game data saved successfully:", result.message);
         } catch (error) {
             console.error("Error saving game data:", error);
         }
@@ -493,7 +503,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const allPlayers = await response.json();
             // 自分以外のプレイヤーだけをフィルタリング
             otherPlayers = allPlayers.filter(p => p.id !== currentPlayerId);
-            // console.log("Fetched other players:", otherPlayers);
         } catch (error) {
             console.error("Error fetching other players:", error);
             otherPlayers = []; // エラー時は空にする
@@ -517,9 +526,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateBattleUI();
             } else if (button.dataset.tab === 'ranking') {
                 updateRanking();
-            } else {
-                updateUI(); // その他のタブでも基本UIは更新
+            } else if (button.dataset.tab === 'pachinko') { // パチンコタブに移動した場合
+                initializePachinkoCanvas(); // キャンバス初期化
+                drawPachinko(); // 初回描画
             }
+            updateUI(); // その他のタブでも基本UIは更新
         });
     });
 
@@ -670,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (coins >= totalCost) {
                 coins -= totalCost;
                 if (!units[unitType]) units[unitType] = {};
-                if (!units[unitType][grade]) units[type][grade] = { count: 0, cooldowns: [] };
+                if (!units[unitType][grade]) units[unitType][grade] = { count: 0, cooldowns: [] };
                 units[unitType][grade].count += quantity;
                 militaryMessage.textContent = `${getUnitDisplayName(unitType)} Lv.${grade} を ${quantity}体購入しました！`;
                 updateUI();
@@ -771,7 +782,6 @@ document.addEventListener('DOMContentLoaded', () => {
             deployQuantityInput.value = 1;
 
             updateUI(); // UIを更新
-            // saveGameData()はバトルAPIの応答に含まれるので、ここでは必須ではないが、念のため実行してもよい
             attackButton.disabled = false;
 
         } catch (error) {
@@ -800,7 +810,6 @@ document.addEventListener('DOMContentLoaded', () => {
             territories: playerTerritories
         };
 
-        // BOTプレイヤーと統合（otherPlayersにはBOTも含まれる想定）
         // BOTを除外してランキングを生成
         const allPlayers = [playerData, ...otherPlayers.filter(p => !p.id.startsWith('bot_'))];
 
@@ -839,9 +848,8 @@ document.addEventListener('DOMContentLoaded', () => {
             username = newUsername; // ローカル変数をまず更新
             localStorage.setItem('localUsername', newUsername); // ローカルストレージにも保存
             usernameMessage.textContent = "アカウント名を変更しました！";
-            // updateUI(); // ここではUIを更新しない。saveGameDataがサーバー応答後にUIを更新するため。
             await saveGameData(); // サーバーに保存し、その中でusernameとUIが更新される
-            usernameInput.value = ''; // ★★★ 入力フィールドをクリア ★★★
+            usernameInput.value = ''; // 入力フィールドをクリア
         } else if (newUsername === username) {
             usernameMessage.textContent = "アカウント名は変更されていません。";
         } else {
@@ -882,6 +890,718 @@ document.addEventListener('DOMContentLoaded', () => {
     spinDirectionReverse.addEventListener('change', async () => {
         spinDirection = 'reverse';
         await saveGameData();
+    });
+
+    // --- パチンコゲームロジック ---
+    function initializePachinkoCanvas() {
+        // キャンバスサイズを親要素に合わせる
+        const parent = pachinkoCanvas.parentElement;
+        pachinkoCanvas.width = parent.clientWidth;
+        pachinkoCanvas.height = Math.min(parent.clientWidth * 1.2, 500); // 縦長に、最大500px
+
+        // 釘の配置を計算
+        pachinkoPegs = [];
+        const pegRadius = 3;
+        const cols = 10;
+        const rows = 15; // 釘の行数を増やす
+        const startY = 50; // 上から少し下げる
+        const spacingX = pachinkoCanvas.width / (cols + 1);
+        const spacingY = (pachinkoCanvas.height - startY - 100) / rows; // 下のスロットスペースを空ける
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = (c + 0.5 + (r % 2 === 0 ? 0 : 0.5)) * spacingX; // 千鳥配置
+                const y = startY + r * spacingY;
+                if (x > pegRadius && x < pachinkoCanvas.width - pegRadius && y > pegRadius && y < pachinkoCanvas.height - pegRadius) {
+                    pachinkoPegs.push({ x: x, y: y, r: pegRadius });
+                }
+            }
+        }
+
+        // スロットの配置と報酬を設定
+        pachinkoSlots = [];
+        const slotWidth = pachinkoCanvas.width / 5; // 5つのスロット
+        const slotHeight = 30;
+        const slotY = pachinkoCanvas.height - slotHeight; // 一番下
+
+        const rewards = [50, 10, 100, 10, 50]; // スロットごとの報酬
+
+        for (let i = 0; i < 5; i++) {
+            pachinkoSlots.push({
+                x: i * slotWidth,
+                y: slotY,
+                width: slotWidth,
+                height: slotHeight,
+                reward: rewards[i]
+            });
+        }
+    }
+
+    function drawPachinko() {
+        pachinkoCtx.clearRect(0, 0, pachinkoCanvas.width, pachinkoCanvas.height); // キャンバスをクリア
+
+        // 釘を描画
+        pachinkoCtx.fillStyle = '#AAAAAA'; // 釘の色
+        pachinkoPegs.forEach(peg => {
+            pachinkoCtx.beginPath();
+            pachinkoCtx.arc(peg.x, peg.y, peg.r, 0, Math.PI * 2);
+            pachinkoCtx.fill();
+        });
+
+        // スロットを描画
+        pachinkoSlots.forEach((slot, index) => {
+            pachinkoCtx.fillStyle = index % 2 === 0 ? '#4CAF50' : '#2196F3'; // スロットの色
+            pachinkoCtx.fillRect(slot.x, slot.y, slot.width, slot.height);
+            pachinkoCtx.fillStyle = 'white';
+            pachinkoCtx.font = '14px Arial';
+            pachinkoCtx.textAlign = 'center';
+            pachinkoCtx.fillText(`${slot.reward}C`, slot.x + slot.width / 2, slot.y + slot.height / 2 + 5);
+        });
+
+        // ボールを描画
+        if (pachinkoBall) {
+            pachinkoCtx.fillStyle = 'orange';
+            pachinkoCtx.beginPath();
+            pachinkoCtx.arc(pachinkoBall.x, pachinkoBall.y, PACHINKO_BALL_RADIUS, 0, Math.PI * 2);
+            pachinkoCtx.fill();
+        }
+    }
+
+    function updatePachinko() {
+        if (!pachinkoBall || pachinkoBall.status === 'stopped') {
+            return;
+        }
+
+        // 重力による加速
+        pachinkoBall.vy += PACHINKO_GRAVITY;
+        pachinkoBall.x += pachinkoBall.vx;
+        pachinkoBall.y += pachinkoBall.vy;
+
+        // 壁との衝突判定 (左右)
+        if (pachinkoBall.x - PACHINKO_BALL_RADIUS < 0 || pachinkoBall.x + PACHINKO_BALL_RADIUS > pachinkoCanvas.width) {
+            pachinkoBall.vx *= -PACHINKO_BOUNCE;
+            pachinkoBall.x = Math.max(PACHINKO_BALL_RADIUS, Math.min(pachinkoCanvas.width - PACHINKO_BALL_RADIUS, pachinkoBall.x)); // 画面内に戻す
+        }
+        // 壁との衝突判定 (上、ボールが上に行かないように)
+        if (pachinkoBall.y - PACHINKO_BALL_RADIUS < 0) {
+            pachinkoBall.vy *= -PACHINKO_BOUNCE;
+            pachinkoBall.y = PACHINKO_BALL_RADIUS;
+        }
+
+
+        // 釘との衝突判定
+        pachinkoPegs.forEach(peg => {
+            const dx = pachinkoBall.x - peg.x;
+            const dy = pachinkoBall.y - peg.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < PACHINKO_BALL_RADIUS + peg.r) {
+                // 衝突ベクトル
+                const normalX = dx / distance;
+                const normalY = dy / distance;
+
+                // 相対速度
+                const relativeVx = pachinkoBall.vx;
+                const relativeVy = pachinkoBall.vy;
+
+                // 法線方向の速度成分
+                const dotProduct = relativeVx * normalX + relativeVy * normalY;
+
+                // 跳ね返り
+                pachinkoBall.vx -= (1 + PACHINKO_BOUNCE) * dotProduct * normalX;
+                pachinkoBall.vy -= (1 + PACHINKO_BOUNCE) * dotProduct * normalY;
+
+                // 釘からボールを少し離す
+                const overlap = (PACHINKO_BALL_RADIUS + peg.r) - distance;
+                pachinkoBall.x += normalX * overlap;
+                pachinkoBall.y += normalY * overlap;
+            }
+        });
+
+        // スロットへの落下判定 (キャンバスの下端に到達)
+        if (pachinkoBall.y + PACHINKO_BALL_RADIUS >= pachinkoCanvas.height) {
+            pachinkoBall.status = 'stopped';
+            const hitSlot = pachinkoSlots.find(slot =>
+                pachinkoBall.x >= slot.x && pachinkoBall.x <= slot.x + slot.width
+            );
+
+            if (hitSlot) {
+                coins += hitSlot.reward;
+                pachinkoMessage.textContent = `大当たり！ ${hitSlot.reward}コイン獲得！`;
+            } else {
+                pachinkoMessage.textContent = '残念、ハズレ！';
+            }
+            updateUI();
+            saveGameData(); // サーバーに保存
+            pachinkoSpinButton.disabled = false;
+        }
+
+        drawPachinko();
+        requestAnimationFrame(updatePachinko);
+    }
+
+    // --- イベントリスナー ---
+
+    // タブ切り替え
+    tabs.forEach(button => {
+        button.addEventListener('click', () => {
+            tabs.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            button.classList.add('active');
+            document.getElementById(button.dataset.tab).classList.add('active');
+
+            // タブ切り替え時に更新が必要なUIを呼ぶ
+            if (button.dataset.tab === 'battle') {
+                updateBattleUI();
+            } else if (button.dataset.tab === 'ranking') {
+                updateRanking();
+            } else if (button.dataset.tab === 'pachinko') { // パチンコタブに移動した場合
+                initializePachinkoCanvas(); // キャンバス初期化
+                drawPachinko(); // 初回描画
+                pachinkoSpinButton.disabled = false; // ボタンを有効化
+                pachinkoMessage.textContent = "賭け金を入力してボールを落とそう！";
+            }
+            updateUI(); // その他のタブでも基本UIは更新
+        });
+    });
+
+
+    // スロットゲーム
+    spinButton.addEventListener('click', async () => {
+        const bet = parseInt(betAmountInput.value);
+        if (isNaN(bet) || bet <= 0 || coins < bet) {
+            spinMessage.textContent = '有効な賭け金を入力してください。';
+            return;
+        }
+        if (Date.now() - lastSpinTime < 3000) { // 3秒クールダウン
+            spinMessage.textContent = "スピンは3秒に一度だけです。";
+            return;
+        }
+
+        spinButton.disabled = true;
+        coins -= bet; // クライアント側で先に減算し、UIに反映
+        lastSpinTime = Date.now();
+        updateUI();
+
+        const results = [
+            slotSymbols[Math.floor(Math.random() * slotSymbols.length)],
+            slotSymbols[Math.floor(Math.random() * slotSymbols.length)],
+            slotSymbols[Math.floor(Math.random() * slotSymbols.length)]
+        ];
+
+        const durations = [1.5, 2.0, 2.5]; // 各リールの停止時間
+        await Promise.all(reels.map((reel, index) => spinReel(reel, durations[index], results[index])));
+
+        const winnings = calculateWinnings(results, bet);
+        coins += winnings; // クライアント側で加算
+        spinMessage.textContent = `結果: ${results.join(' ')}。${winnings > 0 ? `${winnings}コイン獲得！` : '残念！'}`;
+        updateUI();
+        await saveGameData(); // ★サーバーに保存★
+        spinButton.disabled = false;
+    });
+
+    spinDirectionNormal.addEventListener('change', async () => {
+        spinDirection = 'normal';
+        await saveGameData();
+    });
+
+    spinDirectionReverse.addEventListener('change', async () => {
+        spinDirection = 'reverse';
+        await saveGameData();
+    });
+
+
+    // お仕事セクション - タイピングゲーム
+    nextTypingWordButton.addEventListener('click', setNewTypingWord);
+    typingInput.addEventListener('input', async () => {
+        const typedText = typingInput.value;
+        currentWordDisplay.innerHTML = ''; // 一度クリア
+        for (let i = 0; i < currentWord.length; i++) {
+            const charSpan = document.createElement('span');
+            charSpan.textContent = currentWord[i];
+            if (i < typedText.length) {
+                if (typedText[i] === currentWord[i]) {
+                    charSpan.style.color = 'lime'; // 正解
+                } else {
+                    charSpan.style.color = 'red'; // 不正解
+                }
+            }
+            currentWordDisplay.appendChild(charSpan);
+        }
+
+        if (typedText === currentWord) {
+            workMessage.textContent = "完璧！";
+            if (dailyCoinsEarned < dailyCoinLimit) {
+                const earned = Math.floor(Math.random() * 5) + 1; // 1～5コイン
+                coins += earned;
+                dailyCoinsEarned += earned;
+                if (dailyCoinsEarned > dailyCoinLimit) {
+                    coins -= (dailyCoinsEarned - dailyCoinLimit); // 制限を超えた分は差し引く
+                    dailyCoinsEarned = dailyCoinLimit;
+                }
+                workMessage.textContent += ` +${earned}コイン！現在の獲得: ${dailyCoinsEarned}/${dailyCoinLimit}`;
+            } else {
+                workMessage.textContent += " 今日の労働限界に達しました！";
+            }
+            lastWorkTime = Date.now(); // 最終労働時間を更新
+            updateUI();
+            await saveGameData(); // ★サーバーに保存★
+            setTimeout(setNewTypingWord, 1000); // 1秒後に次の単語
+        }
+    });
+
+    // デイリーボーナス
+    claimBonusButton.addEventListener('click', async () => {
+        const today = new Date().toISOString().slice(0, 10);
+        if (lastBonusClaimDate === today) {
+            bonusMessage.textContent = "今日のボーナスは既に受け取り済みです。";
+            return;
+        }
+
+        const bonusAmount = 500; // デイリーボーナス額
+        coins += bonusAmount;
+        lastBonusClaimDate = today;
+        bonusMessage.textContent = `${bonusAmount}コインのデイリーボーナスを受け取りました！`;
+        claimBonusButton.disabled = true; // ボタンを無効化
+        updateUI();
+        await saveGameData(); // ★サーバーに保存★
+    });
+
+
+    // 軍事基地 - 領土購入
+    buyTerritoryButton.addEventListener('click', async () => {
+        const cost = 100000; // 領土購入コスト
+        const now = Date.now();
+        const cooldown = 5 * 60 * 1000; // 5分クールダウン
+
+        if (now - lastTerritoryPurchaseTime < cooldown) {
+            militaryMessage.textContent = `領土購入は${Math.ceil((cooldown - (now - lastTerritoryPurchaseTime)) / 60000)}分待ってください。`;
+            return;
+        }
+
+        if (coins >= cost) {
+            coins -= cost;
+            playerTerritories += 1;
+            lastTerritoryPurchaseTime = now; // クールダウン更新
+            militaryMessage.textContent = `領土を1つ購入しました！現在の領土数: ${playerTerritories}`;
+            updateUI();
+            await saveGameData(); // ★サーバーに保存★
+        } else {
+            militaryMessage.textContent = `コインが${cost - coins}足りません！`;
+        }
+    });
+
+    // 軍事基地 - ユニット購入
+    buyUnitButtons.forEach(button => {
+        button.addEventListener('click', async (event) => {
+            const unitType = event.target.dataset.unitType;
+            const gradeSelect = event.target.closest('.unit-option').querySelector('.unit-grade-select');
+            const grade = parseInt(gradeSelect.value);
+            const quantityInput = event.target.closest('.unit-option').querySelector('.buy-quantity-input');
+            const quantity = parseInt(quantityInput.value);
+
+            const costPerUnit = unitCosts[unitType][grade];
+            const totalCost = costPerUnit * quantity;
+
+            if (isNaN(quantity) || quantity <= 0) {
+                militaryMessage.textContent = "購入数を正しく入力してください。";
+                return;
+            }
+
+            if (coins >= totalCost) {
+                coins -= totalCost;
+                if (!units[unitType]) units[unitType] = {};
+                if (!units[unitType][grade]) units[unitType][grade] = { count: 0, cooldowns: [] };
+                units[unitType][grade].count += quantity;
+                militaryMessage.textContent = `${getUnitDisplayName(unitType)} Lv.${grade} を ${quantity}体購入しました！`;
+                updateUI();
+                await saveGameData(); // ★サーバーに保存★
+                quantityInput.value = 1;
+            } else {
+                militaryMessage.textContent = `コインが${totalCost - coins}足りません！`;
+            }
+        });
+    });
+
+    // バトルセクション - 攻撃ユニット選択
+    unitSelectButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            unitSelectButtons.forEach(btn => btn.classList.remove('selected')); // 全ての選択を解除
+            button.classList.add('selected'); // 選択されたボタンをハイライト
+            selectedUnitType = button.dataset.unitType;
+            selectedUnitGrade = parseInt(button.dataset.unitGrade);
+            updateSelectedDisplay();
+        });
+    });
+
+    // バトルセクション - 攻撃ボタン (サーバー側でバトルロジックを処理)
+    attackButton.addEventListener('click', async () => {
+        if (!selectedUnitType || !selectedUnitGrade || !selectedPlayerId) {
+            battleMessage.textContent = "ユニットと攻撃対象を選択してください。";
+            return;
+        }
+
+        const deployQuantity = parseInt(deployQuantityInput.value);
+        if (isNaN(deployQuantity) || deployQuantity <= 0) {
+            battleMessage.textContent = "有効な出撃数を入力してください。";
+            return;
+        }
+
+        // クライアント側で利用可能なユニット数を簡易チェック (最終的なチェックはサーバーで行う)
+        const unitData = units[selectedUnitType][selectedUnitGrade];
+        const availableCount = unitData.count - unitData.cooldowns.filter(cooldownEnd => cooldownEnd > Date.now()).length;
+
+        if (deployQuantity > availableCount) {
+            battleMessage.textContent = `出撃可能ユニット数(${availableCount}体)を超えています。`;
+            return;
+        }
+
+        const targetPlayer = otherPlayers.find(p => p.id === selectedPlayerId);
+        if (!targetPlayer) {
+            battleMessage.textContent = "攻撃対象が見つかりません。";
+            return;
+        }
+
+        battleMessage.textContent = `バトル開始！ ${getUnitDisplayName(selectedUnitType)} Lv.${selectedUnitGrade} ${deployQuantity}体 で ${targetPlayer.username} に攻撃！`;
+
+        attackButton.disabled = true; // 二重クリック防止
+
+        try {
+            const response = await fetch(`${SERVER_URL}/api/battle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerId: currentPlayerId,
+                    targetPlayerId: selectedPlayerId,
+                    unitType: selectedUnitType,
+                    unitGrade: selectedUnitGrade,
+                    deployQuantity: deployQuantity
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Battle failed: ${errorData.message}`);
+            }
+
+            const result = await response.json();
+            console.log("Battle result:", result);
+
+            // サーバーから返された最新のプレイヤーデータでクライアントの状態を更新
+            coins = result.playerData.coins;
+            playerTerritories = result.playerData.playerTerritories;
+            // ユニットのクールダウンもサーバーから返されたものを反映し、Dateオブジェクトに変換
+            for (const type in result.playerData.units) {
+                for (const grade in result.playerData.units[type]) {
+                    if (result.playerData.units[type][grade] && Array.isArray(result.playerData.units[type][grade].cooldowns)) {
+                        result.playerData.units[type][grade].cooldowns = result.playerData.units[type][grade].cooldowns.map(ts => new Date(ts));
+                    }
+                }
+            }
+            units = result.playerData.units;
+
+            battleMessage.textContent = result.message;
+
+            // 他のプレイヤーデータも更新されている可能性があるので再取得 (特にBOTが倒された場合など)
+            await fetchOtherPlayers();
+
+            // 選択状態をリセット
+            selectedUnitType = null;
+            selectedUnitGrade = null;
+            selectedPlayerId = null;
+            deployQuantityInput.value = 1;
+
+            updateUI(); // UIを更新
+            attackButton.disabled = false;
+
+        } catch (error) {
+            console.error("Error during battle:", error);
+            battleMessage.textContent = `バトル中にエラーが発生しました: ${error.message}`;
+            attackButton.disabled = false;
+        }
+
+        setTimeout(() => {
+            battleMessage.textContent = "攻撃するユニットとプレイヤーを選択してください。";
+            updateBattleUI(); // バトルUIを最新の状態に更新
+        }, 3000);
+    });
+
+
+    // ランキングの更新 (サーバーから全プレイヤーデータを取得する)
+    async function updateRanking() {
+        await fetchOtherPlayers(); // 最新の他のプレイヤーデータを取得
+
+        // 現在のプレイヤーのデータをランキング用に整形
+        const playerData = {
+            id: currentPlayerId,
+            username: username,
+            icon: userIcon,
+            coins: coins,
+            territories: playerTerritories
+        };
+
+        // BOTを除外してランキングを生成
+        const allPlayers = [playerData, ...otherPlayers.filter(p => !p.id.startsWith('bot_'))];
+
+        // コイン数で降順にソート、同点の場合は領土数でソート
+        allPlayers.sort((a, b) => {
+            if (b.coins !== a.coins) {
+                return b.coins - a.coins;
+            }
+            return b.territories - a.territories;
+        });
+
+        rankingList.innerHTML = '';
+        allPlayers.forEach((player, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="rank">${index + 1}.</span>
+                            <span class="name" data-username="${player.username}">
+                                <span class="icon-in-ranking">
+                                    ${player.icon && player.icon.startsWith('data:image') ? `<img src="${player.icon}" alt="icon">` : `<span>${player.icon || '👤'}</span>`}
+                                </span>
+                                ${player.username}
+                            </span>
+                            <span class="score">${player.coins.toLocaleString()}C</span>
+                            <span class="territories">${player.territories}領土</span>`;
+            rankingList.appendChild(li);
+
+            if (player.id === currentPlayerId) {
+                yourRankDisplay.textContent = `あなたの現在の順位: ${index + 1}位`;
+            }
+        });
+    }
+
+    // 設定セクション - ユーザー名とアイコンの保存
+    saveUsernameButton.addEventListener('click', async () => {
+        const newUsername = usernameInput.value.trim();
+        if (newUsername && newUsername !== username) {
+            username = newUsername; // ローカル変数をまず更新
+            localStorage.setItem('localUsername', newUsername); // ローカルストレージにも保存
+            usernameMessage.textContent = "アカウント名を変更しました！";
+            await saveGameData(); // サーバーに保存し、その中でusernameとUIが更新される
+            usernameInput.value = ''; // 入力フィールドをクリア
+        } else if (newUsername === username) {
+            usernameMessage.textContent = "アカウント名は変更されていません。";
+        } else {
+            usernameMessage.textContent = "有効なアカウント名を入力してください。";
+        }
+    });
+
+    iconUploadInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                userIcon = e.target.result; // Data URLとして保存
+                localStorage.setItem('localUserIcon', userIcon); // ローカルにも保存
+                updateUI();
+                await saveGameData(); // ★サーバーに保存★
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    iconSelectors.forEach(iconElement => {
+        iconElement.addEventListener('click', async () => {
+            document.querySelector('.icon-selector .icon.selected')?.classList.remove('selected');
+            userIcon = iconElement.dataset.icon;
+            iconElement.classList.add('selected');
+            localStorage.setItem('localUserIcon', userIcon); // ローカルにも保存
+            updateUI();
+            await saveGameData(); // ★サーバーに保存★
+        });
+    });
+
+    spinDirectionNormal.addEventListener('change', async () => {
+        spinDirection = 'normal';
+        await saveGameData();
+    });
+
+    spinDirectionReverse.addEventListener('change', async () => {
+        spinDirection = 'reverse';
+        await saveGameData();
+    });
+
+    // --- パチンコゲームロジック ---
+    // キャンバス初期化とサイズ調整
+    function initializePachinkoCanvas() {
+        const parent = pachinkoCanvas.parentElement;
+        pachinkoCanvas.width = parent.clientWidth;
+        pachinkoCanvas.height = Math.min(parent.clientWidth * 1.2, 500); // 縦長に、最大500px
+
+        pachinkoCtx.font = '14px Arial'; // フォント設定を初期化時に行う
+
+        // 釘の配置を計算
+        pachinkoPegs = [];
+        const pegRadius = 3;
+        const cols = 10;
+        const rows = 15; // 釘の行数を増やす
+        const startY = 50; // 上から少し下げる
+        const spacingX = pachinkoCanvas.width / (cols + 1);
+        const spacingY = (pachinkoCanvas.height - startY - 100) / rows; // 下のスロットスペースを空ける
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = (c + 0.5 + (r % 2 === 0 ? 0 : 0.5)) * spacingX; // 千鳥配置
+                const y = startY + r * spacingY;
+                if (x > pegRadius && x < pachinkoCanvas.width - pegRadius && y > pegRadius && y < pachinkoCanvas.height - pegRadius) {
+                    pachinkoPegs.push({ x: x, y: y, r: pegRadius });
+                }
+            }
+        }
+
+        // スロットの配置と報酬を設定
+        pachinkoSlots = [];
+        const slotWidth = pachinkoCanvas.width / 5; // 5つのスロット
+        const slotHeight = 30;
+        const slotY = pachinkoCanvas.height - slotHeight; // 一番下
+
+        const rewards = [50, 10, 100, 10, 50]; // スロットごとの報酬
+
+        for (let i = 0; i < 5; i++) {
+            pachinkoSlots.push({
+                x: i * slotWidth,
+                y: slotY,
+                width: slotWidth,
+                height: slotHeight,
+                reward: rewards[i]
+            });
+        }
+    }
+
+    // パチンコゲーム描画
+    function drawPachinko() {
+        pachinkoCtx.clearRect(0, 0, pachinkoCanvas.width, pachinkoCanvas.height); // キャンバスをクリア
+
+        // 釘を描画
+        pachinkoCtx.fillStyle = '#AAAAAA'; // 釘の色
+        pachinkoPegs.forEach(peg => {
+            pachinkoCtx.beginPath();
+            pachinkoCtx.arc(peg.x, peg.y, peg.r, 0, Math.PI * 2);
+            pachinkoCtx.fill();
+        });
+
+        // スロットを描画
+        pachinkoSlots.forEach((slot, index) => {
+            pachinkoCtx.fillStyle = index % 2 === 0 ? '#4CAF50' : '#2196F3'; // スロットの色
+            pachinkoCtx.fillRect(slot.x, slot.y, slot.width, slot.height);
+            pachinkoCtx.fillStyle = 'white';
+            pachinkoCtx.font = '14px Arial';
+            pachinkoCtx.textAlign = 'center';
+            pachinkoCtx.fillText(`${slot.reward}C`, slot.x + slot.width / 2, slot.y + slot.height / 2 + 5);
+        });
+
+        // ボールを描画
+        if (pachinkoBall && pachinkoBall.status !== 'stopped') {
+            pachinkoCtx.fillStyle = 'orange';
+            pachinkoCtx.beginPath();
+            pachinkoCtx.arc(pachinkoBall.x, pachinkoBall.y, PACHINKO_BALL_RADIUS, 0, Math.PI * 2);
+            pachinkoCtx.fill();
+        }
+    }
+
+    // パチンコゲーム更新ループ
+    function updatePachinko() {
+        if (!pachinkoBall || pachinkoBall.status === 'stopped') {
+            return;
+        }
+
+        // 重力による加速
+        pachinkoBall.vy += PACHINKO_GRAVITY;
+        pachinkoBall.x += pachinkoBall.vx;
+        pachinkoBall.y += pachinkoBall.vy;
+
+        // 壁との衝突判定 (左右)
+        if (pachinkoBall.x - PACHINKO_BALL_RADIUS < 0 || pachinkoBall.x + PACHINKO_BALL_RADIUS > pachinkoCanvas.width) {
+            pachinkoBall.vx *= -PACHINKO_BOUNCE;
+            // 画面内に戻す
+            pachinkoBall.x = Math.max(PACHINKO_BALL_RADIUS, Math.min(pachinkoCanvas.width - PACHINKO_BALL_RADIUS, pachinkoBall.x));
+        }
+        // 壁との衝突判定 (上、ボールが上に行かないように)
+        if (pachinkoBall.y - PACHINKO_BALL_RADIUS < 0) {
+            pachinkoBall.vy *= -PACHINKO_BOUNCE;
+            pachinkoBall.y = PACHINKO_BALL_RADIUS;
+        }
+
+
+        // 釘との衝突判定
+        pachinkoPegs.forEach(peg => {
+            const dx = pachinkoBall.x - peg.x;
+            const dy = pachinkoBall.y - peg.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < PACHINKO_BALL_RADIUS + peg.r) {
+                // ボールが釘をすり抜けないように修正
+                const overlap = (PACHINKO_BALL_RADIUS + peg.r) - distance;
+                pachinkoBall.x += (dx / distance) * overlap;
+                pachinkoBall.y += (dy / distance) * overlap;
+
+                // 衝突ベクトル
+                const normalX = dx / distance;
+                const normalY = dy / distance;
+
+                // 相対速度
+                const relativeVx = pachinkoBall.vx;
+                const relativeVy = pachinkoBall.vy;
+
+                // 法線方向の速度成分
+                const dotProduct = relativeVx * normalX + relativeVy * normalY;
+
+                // 跳ね返り (法線方向に反転)
+                pachinkoBall.vx -= (1 + PACHINKO_BOUNCE) * dotProduct * normalX;
+                pachinkoBall.vy -= (1 + PACHINKO_BOUNCE) * dotProduct * normalY;
+
+                // 速度減衰 (摩擦)
+                pachinkoBall.vx *= 0.95;
+                pachinkoBall.vy *= 0.95;
+            }
+        });
+
+        // スロットへの落下判定 (キャンバスの下端に到達)
+        if (pachinkoBall.y + PACHINKO_BALL_RADIUS >= pachinkoCanvas.height) {
+            pachinkoBall.status = 'stopped';
+            const hitSlot = pachinkoSlots.find(slot =>
+                pachinkoBall.x >= slot.x && pachinkoBall.x <= slot.x + slot.width
+            );
+
+            if (hitSlot) {
+                coins += hitSlot.reward;
+                pachinkoMessage.textContent = `大当たり！ ${hitSlot.reward}コイン獲得！`;
+            } else {
+                pachinkoMessage.textContent = '残念、ハズレ！';
+            }
+            updateUI();
+            saveGameData(); // サーバーに保存
+            pachinkoSpinButton.disabled = false;
+        }
+
+        drawPachinko();
+        requestAnimationFrame(updatePachinko);
+    }
+
+    // パチンコゲーム開始
+    pachinkoSpinButton.addEventListener('click', () => {
+        const bet = parseInt(pachinkoBetInput.value);
+        if (isNaN(bet) || bet <= 0 || coins < bet) {
+            pachinkoMessage.textContent = '有効な賭け金を入力してください。';
+            return;
+        }
+
+        coins -= bet; // 賭け金を減算
+        updateUI(); // UI更新
+        pachinkoMessage.textContent = "ボール発射！";
+        pachinkoSpinButton.disabled = true; // ボタンを一時的に無効化
+
+        // ボールを初期化
+        pachinkoBall = {
+            x: pachinkoCanvas.width / 2, // 中央上部から開始
+            y: PACHINKO_BALL_RADIUS,
+            vx: (Math.random() - 0.5) * 5, // 横方向の初期速度
+            vy: 0,
+            status: 'dropping'
+        };
+        requestAnimationFrame(updatePachinko); // アニメーション開始
     });
 
 
