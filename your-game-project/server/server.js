@@ -208,6 +208,16 @@ const cors = require('cors'); // 追加
 
 const app = express();
 
+const express = require('express');
+const cors = require('cors'); // 追加
+
+const app = express();
+
+const express = require('express');
+const cors = require('cors'); // 追加
+
+const app = express();
+
 // ★★★ ここに追加 ★★★
 app.use(cors()); // 全てのリクエストを許可する場合
 // または、特定のオリジンのみを許可する場合
