@@ -5,6 +5,21 @@ const fs = require('fs'); // ローカルでのテスト目的で残すが、Ren
 const path = require('path');
 
 const app = express();
+const express = require('express');
+const cors = require('cors'); // この行があるか確認
+
+const app = express();
+
+// ★★★ この行が、app.use(express.json()); より前に、かつ app = express() の直下にあるか確認 ★★★
+app.use(cors()); 
+// または、より安全な指定 (あなたのクライアントURLに置き換えてください)
+// app.use(cors({ origin: 'https://ak-game-client.onrender.com' }));
+// ★★★ ここまで ★★★
+
+app.use(express.json()); // これは通常 app.use(cors()) の後
+app.use(express.urlencoded({ extended: true })); // もしあれば
+
+// ... その他のルートハンドラ (app.get('/'), app.get('/api/player') など) ...
 // Renderが提供するPORT環境変数を使用し、それがなければローカル開発用に3000番ポートを使用
 const PORT = process.env.PORT || 3000;
 
