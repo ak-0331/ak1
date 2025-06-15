@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- サーバーのURL ---
     // ★★★★ ここをあなたのRenderでデプロイしたサーバーの公開URLに置き換えてください！ ★★★★
-    const SERVER_URL = 'YOUR_RENDER_SERVER_PUBLIC_URL_HERE'; 
+    const SERVER_URL = 'https://ak-game-server.onrender.com'; 
     // 例: const SERVER_URL = 'https://my-game-server-abc12.onrender.com';
 
 
