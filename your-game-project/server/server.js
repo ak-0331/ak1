@@ -1,20 +1,20 @@
-// server/server.js - 最終修正版
+// server/server.js - 最終確定版
 // このファイルは、Node.jsとExpress.jsを使ってゲームのバックエンドサービスを提供します。
 // プレイヤーデータの管理、ゲームロジック（バトルなど）、APIエンドポイントを含みます。
 
-// 1. 必要なモジュールを読み込む（重複なく一度だけ）
+// 1. 必要なモジュールを読み込む（ファイル全体で一度だけ！）
 const express = require('express');
 const cors = require('cors'); // CORS（クロスオリジンリソース共有）を許可するために必要
 const path = require('path'); // ファイルパス操作のために必要
 const fs = require('fs');     // ファイルシステム操作のために必要（メモリ内DBの補助）
 
-// 2. Expressアプリケーションのインスタンスを作成（一度だけ）
+// 2. Expressアプリケーションのインスタンスを作成（ファイル全体で一度だけ！）
 const app = express();
 
 // Renderが提供するPORT環境変数を使用し、それがなければローカル開発用に3000番ポートを使用
 const PORT = process.env.PORT || 3000;
 
-// --- 3. ミドルウェアの設定（順序が重要です！） ---
+// --- 3. ミドルウェアの設定（順序が重要です！これらを重複させない！） ---
 // CORSミドルウェアを一番最初に配置することで、全てのリクエストに対してCORSヘッダーが適用されます。
 // 本番環境では、クライアントの公開URLのみを許可するよう厳密に設定することを推奨します。
 // 例: app.use(cors({ origin: 'https://ak-game-client.onrender.com' }));
