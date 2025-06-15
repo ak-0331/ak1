@@ -1,19 +1,14 @@
-// server/server.js - Firestore連携版
+// server/server.js - 国運営ゲーム機能対応版
 // このファイルは、Node.jsとExpress.jsを使ってゲームのバックエンドサービスを提供します。
-// Firebase Firestoreをデータ永続化に利用します。
+// Firebase Firestoreをデータ永続化に利用し、国運営要素を追加します。
 
 // 1. 必要なモジュールを読み込む
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin'); // Firebase Admin SDKをインポート
-const path = require('path');
-const fs = require('fs'); // ローカル開発時の補助、今回は使わないが残す
 
 // 2. Firebase Admin SDKの初期化
 // Renderの環境変数からサービスアカウントの認証情報を取得します。
-// これらの環境変数は、Renderダッシュボードで設定する必要があります。
-// FIREBASE_PRIVATE_KEYは、JSONキーファイルの "private_key" の値をそのまま使用し、
-// 改行コード（\n）もそのまま含める必要があります。
 try {
     admin.initializeApp({
         credential: admin.credential.cert({
@@ -25,7 +20,6 @@ try {
     console.log("Firebase Admin SDK initialized successfully.");
 } catch (error) {
     console.error("Failed to initialize Firebase Admin SDK:", error.message);
-    // サーバーの起動を停止するなど、エラーハンドリングを強化することも可能
     process.exit(1); // 初期化失敗時はプロセスを終了
 }
 
@@ -46,7 +40,7 @@ app.use(express.urlencoded({ extended: true })); // URLエンコードされた�
 
 // --- BOTデータ管理（メモリ内） ---
 // BOTデータは再起動ごとにリセットされますが、プレイヤーデータはFirestoreに永続化されます。
-let botPlayersData = {}; // リアルプレイヤーのplayersDataとは別にする
+let botPlayersData = {};
 
 // サーバー起動時にダミーのBOTデータを生成/更新する関数
 function generateOtherPlayers() {
@@ -69,7 +63,14 @@ function generateOtherPlayers() {
                 dailyCoinsEarned: 0,
                 lastSpinTime: 0,
                 lastTerritoryPurchaseTime: 0,
-                spinDirection: "normal"
+                spinDirection: "normal",
+                // ★追加: BOTにも工場と軍事資材の初期値を追加 (シンプルに)
+                militarySupplies: 0,
+                factories: {
+                    material: { level: 1, lastCollected: new Date().toISOString() },
+                    product: { level: 1, lastCollected: new Date().toISOString() }
+                },
+                territoryLevel: 1 // BOTの領土レベルも追加
             };
         }
     }
@@ -78,6 +79,34 @@ function generateOtherPlayers() {
 // サーバー起動時にBOTデータを初期化する
 generateOtherPlayers();
 
+// --- 軍事資材の生産計算ロジック ---
+function calculateMilitarySuppliesProduction(factories, lastCollectedTime) {
+    const now = Date.now();
+    let effectiveMaterialLevel = factories.material.level || 1;
+    let effectiveProductLevel = factories.product.level || 1;
+
+    // 生産能力は両工場の低い方のレベルに依存
+    const effectiveProductionLevel = Math.min(effectiveMaterialLevel, effectiveProductLevel);
+    
+    // レベル1で1000/時間、レベル2で2000/時間...なので、レベル * 1000
+    const productionRatePerHour = effectiveProductionLevel * 1000; // 1時間あたりの生産量
+
+    if (productionRatePerHour === 0) { // 工場レベルが0の場合は生産なし
+        return 0;
+    }
+
+    const lastCollectDate = new Date(lastCollectedTime);
+    if (isNaN(lastCollectDate.getTime())) { // 無効な日付の場合は0生産
+        console.warn("Invalid lastCollectedTime:", lastCollectedTime);
+        return 0;
+    }
+
+    const timeElapsedHours = (now - lastCollectDate.getTime()) / (1000 * 60 * 60); // 時間経過
+
+    // 時間経過に応じた生産量を計算し、整数に丸める
+    const producedAmount = Math.floor(productionRatePerHour * timeElapsedHours);
+    return producedAmount;
+}
 
 // --- APIエンドポイントの定義 ---
 
@@ -87,7 +116,7 @@ app.get('/', (req, res) => {
     res.json({ message: 'Hello from Render Server!', status: 'ready', serverTime: new Date() });
 });
 
-// プレイヤーデータを取得または新規作成するAPI
+// プレイヤーデータを取得または新規作成するAPI (Firestore対応)
 app.post('/api/player', async (req, res) => {
     const { requestedId, username: clientUsername, userIcon: clientUserIcon } = req.body;
     let playerRef;
@@ -124,10 +153,60 @@ app.post('/api/player', async (req, res) => {
                 dailyCoinsEarned: 0,
                 lastBonusClaimDate: null,
                 spinDirection: "normal",
-                lastTerritoryPurchaseTime: 0
+                lastTerritoryPurchaseTime: 0,
+                // ★新規追加: 軍事資材、工場データ、領土レベル
+                militarySupplies: 0,
+                factories: {
+                    material: { level: 1, lastCollected: new Date().toISOString() }, // 初回ログイン時刻
+                    product: { level: 1, lastCollected: new Date().toISOString() }
+                },
+                territoryLevel: 1 // 領土の初期レベル
             };
             await playerRef.set(playerData); // Firestoreに新規ドキュメントを作成
             console.log(`New player created in Firestore: ${newPlayerId}`);
+        } else {
+            // ★既存プレイヤーの場合、新しいフィールドがなければ初期化
+            playerData.militarySupplies = playerData.militarySupplies !== undefined ? playerData.militarySupplies : 0;
+            playerData.territoryLevel = playerData.territoryLevel !== undefined ? playerData.territoryLevel : 1;
+            
+            if (!playerData.factories) {
+                playerData.factories = {
+                    material: { level: 1, lastCollected: new Date().toISOString() },
+                    product: { level: 1, lastCollected: new Date().toISOString() }
+                };
+            } else {
+                if (!playerData.factories.material) playerData.factories.material = { level: 1, lastCollected: new Date().toISOString() };
+                if (!playerData.factories.product) playerData.factories.product = { level: 1, lastCollected: new Date().toISOString() };
+                
+                // lastCollected がない、または不正な値の場合、現在時刻に設定
+                if (!playerData.factories.material.lastCollected || isNaN(new Date(playerData.factories.material.lastCollected).getTime())) {
+                    playerData.factories.material.lastCollected = new Date().toISOString();
+                }
+                if (!playerData.factories.product.lastCollected || isNaN(new Date(playerData.factories.product.lastCollected).getTime())) {
+                    playerData.factories.product.lastCollected = new Date().toISOString();
+                }
+            }
+            // ★オフライン生産の計算と加算
+            const producedMaterials = calculateMilitarySuppliesProduction(
+                playerData.factories,
+                Math.max(
+                    new Date(playerData.factories.material.lastCollected).getTime(),
+                    new Date(playerData.factories.product.lastCollected).getTime()
+                )
+            );
+            if (producedMaterials > 0) {
+                playerData.militarySupplies += producedMaterials;
+                // 収集時刻を現在時刻に更新
+                playerData.factories.material.lastCollected = new Date().toISOString();
+                playerData.factories.product.lastCollected = new Date().toISOString();
+                // Firestoreも更新しておく
+                await playerRef.update({
+                    militarySupplies: playerData.militarySupplies,
+                    'factories.material.lastCollected': playerData.factories.material.lastCollected,
+                    'factories.product.lastCollected': playerData.factories.product.lastCollected
+                });
+                console.log(`Offline production for ${playerData.username}: ${producedMaterials} military supplies added.`);
+            }
         }
         res.json(playerData);
     } catch (error) {
@@ -136,7 +215,7 @@ app.post('/api/player', async (req, res) => {
     }
 });
 
-// プレイヤーデータを更新するAPI
+// プレイヤーデータを更新するAPI (Firestore対応)
 app.post('/api/player/update', async (req, res) => {
     const { playerId, data } = req.body;
 
@@ -163,6 +242,15 @@ app.post('/api/player/update', async (req, res) => {
                 }
             }
         }
+        // ★追加: 工場データのlastCollectedもISO文字列に変換 (もしあれば)
+        if (data.factories) {
+            if (data.factories.material && data.factories.material.lastCollected instanceof Date) {
+                data.factories.material.lastCollected = data.factories.material.lastCollected.toISOString();
+            }
+            if (data.factories.product && data.factories.product.lastCollected instanceof Date) {
+                data.factories.product.lastCollected = data.factories.product.lastCollected.toISOString();
+            }
+        }
 
         // Firestoreのドキュメントを更新
         await playerRef.update(data); // `update` は指定されたフィールドのみ更新
@@ -178,7 +266,7 @@ app.post('/api/player/update', async (req, res) => {
     }
 });
 
-// 全プレイヤーデータを取得するAPI（ランキング表示用など）
+// 全プレイヤーデータを取得するAPI（ランキング表示用など） (Firestore対応)
 app.get('/api/players', async (req, res) => {
     try {
         const playersCollection = db.collection('players');
@@ -192,7 +280,6 @@ app.get('/api/players', async (req, res) => {
         generateOtherPlayers(); // in-memory botPlayersData を更新
 
         // リアルプレイヤーとBOTプレイヤーを結合
-        // クライアント側で 'bot_' でフィルタリングされる前提
         const allPlayers = [...realPlayers, ...Object.values(botPlayersData)];
 
         // クライアントに返す前に、不要な情報や機密情報をフィルタリング（必要であれば）
@@ -215,20 +302,20 @@ app.get('/api/players', async (req, res) => {
 });
 
 // バトルロジックを処理するAPI
-const unitPowers = { /* ... 定義はそのまま ... */
+const unitPowers = {
     infantry: { 1: 10, 2: 20, 3: 40 },
     armored_car: { 1: 50, 2: 100, 3: 200 },
     tank: { 1: 200, 2: 400, 3: 800 },
     fighter: { 1: 500, 2: 1000, 3: 2000 }
 };
-const unitCooldownTimes = { /* ... 定義はそのまま ... */
+const unitCooldownTimes = {
     infantry: { 1: 30 * 60 * 1000, 2: 25 * 60 * 1000, 3: 20 * 60 * 1000 },
     armored_car: { 1: 60 * 60 * 1000, 2: 50 * 60 * 1000, 3: 40 * 60 * 1000 },
     tank: { 1: 60 * 60 * 1000, 2: 50 * 60 * 1000, 3: 40 * 60 * 1000 },
     fighter: { 1: 120 * 60 * 1000, 2: 100 * 60 * 1000, 3: 80 * 60 * 1000 }
 };
 
-app.post('/api/battle', async (req, res) => { // async を追加
+app.post('/api/battle', async (req, res) => {
     const { playerId, targetPlayerId, unitType, unitGrade, deployQuantity } = req.body;
 
     try {
@@ -277,6 +364,7 @@ app.post('/api/battle', async (req, res) => { // async を追加
         const totalAttackPower = unitPower * deployQuantity;
 
         let totalDefensePower = targetPlayer.playerTerritories * 50;
+        // ターゲットユニットからの防御力追加
         for (const type in targetPlayer.units) {
             for (const grade in targetPlayer.units[type]) {
                 totalDefensePower += (unitPowers[type]?.[grade] || 0) * (targetPlayer.units[type]?.[grade]?.count || 0);
@@ -324,7 +412,7 @@ app.post('/api/battle', async (req, res) => { // async を追加
         await playerRef.update({
             coins: player.coins,
             playerTerritories: player.playerTerritories,
-            units: player.units // ユニットデータ全体を更新
+            units: player.units
         });
 
         // ターゲットが人間プレイヤーの場合、そのデータもFirestoreに更新
@@ -341,7 +429,7 @@ app.post('/api/battle', async (req, res) => { // async を追加
         res.json({
             message: battleMessage,
             playerData: updatedPlayerDoc.data(),
-            opponentData: updatedTargetDoc // BOTの場合はメモリのデータ、人間プレイヤーの場合はFirestoreのデータ
+            opponentData: updatedTargetDoc
         });
 
         console.log(`[BATTLE LOG] プレイヤー ${player.username} (${playerId}) が ${targetPlayer.username} (${targetPlayerId}) を攻撃。結果: ${battleMessage}`);

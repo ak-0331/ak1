@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>オンラインカジノ＆領土戦争ゲーム</title>
+    <title>オンラインカジノ＆国運営ゲーム</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -235,6 +235,16 @@
             font-size: 0.875rem;
             color: #cbd5e0;
         }
+        /* 軍事基地のユニット購入コスト表示 */
+        .unit-costs {
+            font-size: 0.875rem;
+            color: #cbd5e0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+        }
+
 
         /* バトルセクション */
         .battle-options {
@@ -501,6 +511,62 @@
         #pachinko-bet-input {
             max-width: 100px; /* 入力欄の幅を調整 */
         }
+
+        /* 国運営 */
+        .country-management-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        @media (min-width: 768px) { /* Larger screens */
+            .country-management-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .factory-section {
+            background-color: #2d3748;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .factory-section h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #a78bfa; /* 紫 */
+            margin-bottom: 0.5rem;
+        }
+        .factory-level, .production-rate, .materials-amount {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .factory-level-cost {
+            font-size: 0.875rem;
+            color: #cbd5e0;
+        }
+        .resource-display {
+            background-color: #4a5568;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .resource-display h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f6ad55; /* オレンジ */
+        }
+        .resource-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
     </style>
 </head>
 <body class="p-4">
@@ -521,7 +587,8 @@
             <button class="tab-button" data-tab="work">お仕事</button>
             <button class="tab-button" data-tab="military">軍事基地</button>
             <button class="tab-button" data-tab="battle">バトル</button>
-            <button class="tab-button" data-tab="pachinko">パチンコ</button> <!-- 新しいタブボタン -->
+            <button class="tab-button" data-tab="pachinko">パチンコ</button>
+            <button class="tab-button" data-tab="country-management">国運営</button> <!-- 新しいタブボタン -->
             <button class="tab-button" data-tab="ranking">ランキング</button>
             <button class="tab-button" data-tab="settings">設定</button>
         </div>
@@ -592,10 +659,13 @@
                         <p class="unit-stats">保有: <span id="infantry-count-1">0</span> (<span id="infantry-available-1">0</span> 使用可能)</p>
                         <p class="unit-stats">クールダウン中: <span id="infantry-cooldown-1">0</span></p>
                         <select class="unit-grade-select">
-                            <option value="1">Lv.1 (100C)</option>
-                            <option value="2">Lv.2 (200C)</option>
-                            <option value="3">Lv.3 (400C)</option>
+                            <option value="1">Lv.1</option>
+                            <option value="2">Lv.2</option>
+                            <option value="3">Lv.3</option>
                         </select>
+                        <div class="unit-costs">
+                            <span id="infantry-cost-1">コスト: --C / --資材</span>
+                        </div>
                         <input type="number" value="1" min="1" class="buy-quantity-input">
                         <button class="buy-unit-button" data-unit-type="infantry">購入</button>
                     </div>
@@ -606,10 +676,13 @@
                         <p class="unit-stats">保有: <span id="armored_car-count-1">0</span> (<span id="armored_car-available-1">0</span> 使用可能)</p>
                         <p class="unit-stats">クールダウン中: <span id="armored_car-cooldown-1">0</span></p>
                         <select class="unit-grade-select">
-                            <option value="1">Lv.1 (500C)</option>
-                            <option value="2">Lv.2 (1000C)</option>
-                            <option value="3">Lv.3 (2000C)</option>
+                            <option value="1">Lv.1</option>
+                            <option value="2">Lv.2</option>
+                            <option value="3">Lv.3</option>
                         </select>
+                        <div class="unit-costs">
+                            <span id="armored_car-cost-1">コスト: --C / --資材</span>
+                        </div>
                         <input type="number" value="1" min="1" class="buy-quantity-input">
                         <button class="buy-unit-button" data-unit-type="armored_car">購入</button>
                     </div>
@@ -620,10 +693,13 @@
                         <p class="unit-stats">保有: <span id="tank-count-1">0</span> (<span id="tank-available-1">0</span> 使用可能)</p>
                         <p class="unit-stats">クールダウン中: <span id="tank-cooldown-1">0</span></p>
                         <select class="unit-grade-select">
-                            <option value="1">Lv.1 (2000C)</option>
-                            <option value="2">Lv.2 (4000C)</option>
-                            <option value="3">Lv.3 (8000C)</option>
+                            <option value="1">Lv.1</option>
+                            <option value="2">Lv.2</option>
+                            <option value="3">Lv.3</option>
                         </select>
+                        <div class="unit-costs">
+                            <span id="tank-cost-1">コスト: --C / --資材</span>
+                        </div>
                         <input type="number" value="1" min="1" class="buy-quantity-input">
                         <button class="buy-unit-button" data-unit-type="tank">購入</button>
                     </div>
@@ -634,10 +710,13 @@
                         <p class="unit-stats">保有: <span id="fighter-count-1">0</span> (<span id="fighter-available-1">0</span> 使用可能)</p>
                         <p class="unit-stats">クールダウン中: <span id="fighter-cooldown-1">0</span></p>
                         <select class="unit-grade-select">
-                            <option value="1">Lv.1 (5000C)</option>
-                            <option value="2">Lv.2 (10000C)</option>
-                            <option value="3">Lv.3 (20000C)</option>
+                            <option value="1">Lv.1</option>
+                            <option value="2">Lv.2</option>
+                            <option value="3">Lv.3</option>
                         </select>
+                        <div class="unit-costs">
+                            <span id="fighter-cost-1">コスト: --C / --資材</span>
+                        </div>
                         <input type="number" value="1" min="1" class="buy-quantity-input">
                         <button class="buy-unit-button" data-unit-type="fighter">購入</button>
                     </div>
@@ -684,7 +763,7 @@
             </div>
         </div>
 
-        <div id="pachinko" class="tab-content"> <!-- 新しいタブコンテンツ -->
+        <div id="pachinko" class="tab-content">
             <div class="game-section">
                 <h2>パチンコ</h2>
                 <canvas id="pachinko-canvas"></canvas>
@@ -693,6 +772,51 @@
                     <input type="number" id="pachinko-bet-input" value="100" min="10">
                     <button id="pachinko-spin-button">ボールを落とす</button>
                     <p id="pachinko-message" class="message">賭け金を入力してボールを落とそう！</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="country-management" class="tab-content"> <!-- 新しい国運営タブ -->
+            <div class="game-section">
+                <h2>国運営</h2>
+                <p class="message mb-4">あなたの国を強化し、資材を生産しよう！</p>
+
+                <div class="country-management-grid">
+                    <!-- 領土レベルアップ -->
+                    <div class="factory-section">
+                        <h3>領土レベル</h3>
+                        <p class="factory-level">現在のレベル: <span id="territory-current-level">1</span></p>
+                        <p class="factory-level-cost">次のレベルまで: <span id="territory-level-cost">10</span>領土 + <span id="territory-level-cost-coins">5000</span>C</p>
+                        <p id="territory-level-message" class="message"></p>
+                        <button id="level-up-territory-button">領土レベルアップ</button>
+                    </div>
+
+                    <!-- 材料工場 -->
+                    <div class="factory-section">
+                        <h3>材料工場</h3>
+                        <p class="factory-level">レベル: <span id="material-factory-level">1</span></p>
+                        <p class="factory-level-cost">レベルアップ費用: <span id="material-factory-cost">1000</span>C</p>
+                        <p id="material-factory-message" class="message"></p>
+                        <button id="level-up-material-factory-button">レベルアップ</button>
+                    </div>
+
+                    <!-- 商品工場 -->
+                    <div class="factory-section">
+                        <h3>商品工場</h3>
+                        <p class="factory-level">レベル: <span id="product-factory-level">1</span></p>
+                        <p class="factory-level-cost">レベルアップ費用: <span id="product-factory-cost">1000</span>C</p>
+                        <p id="product-factory-message" class="message"></p>
+                        <button id="level-up-product-factory-button">レベルアップ</button>
+                    </div>
+
+                    <!-- 軍事資材の表示と生産量 -->
+                    <div class="resource-display">
+                        <h3>軍事資材</h3>
+                        <p class="resource-amount"><span id="military-supplies-amount">0</span></p>
+                        <p class="production-rate">生産量: <span id="military-supplies-production-rate">0</span> 資材/時間</p>
+                        <p class="message" id="military-supplies-message"></p>
+                        <button id="collect-military-supplies-button">資材を収集</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -723,7 +847,7 @@
                         <span class="icon" data-icon="😎">😎</span>
                         <span class="icon" data-icon="😇">😇</span>
                         <span class="icon" data-icon="👽">👽</span>
-                        <span class="icon" data-icon="�">🤖</span>
+                        <span class="icon" data-icon="🤖">🤖</span>
                         <span class="icon" data-icon="👺">👺</span>
                         <label for="icon-upload-input" class="upload-area">
                             <span>画像アイコンをアップロード</span>
