@@ -160,95 +160,138 @@ app.get('/api/players', (req, res) => {
 });
 
 // バトルロジックを処理するAPI
-// クライアントからの攻撃リクエストを受け取り、サーバー側で戦闘結果を計算・更新します。
+// server/server.js の app.post('/api/battle', ...) の部分
+
 app.post('/api/battle', (req, res) => {
     const { playerId, targetPlayerId, unitType, unitGrade, deployQuantity } = req.body;
 
-    const player = playersData[playerId];
-    const targetPlayer = playersData[targetPlayerId];
-
-    if (!player || !targetPlayer) {
-        console.warn(`Battle failed: Player ${playerId} or target ${targetPlayerId} not found.`);
-        return res.status(404).json({ message: 'Player or target not found' });
-    }
-
-    // サーバーサイドでのユニットの存在とクールダウンチェック
-    // クライアントからのデータがISO文字列の場合があるので、Dateオブジェクトに変換して比較
-    const unitData = player.units[unitType]?.[grade]; // ユニットが存在するか確認
-    if (!unitData) {
-        console.warn(`Battle failed: Unit ${unitType} Lv.${unitGrade} not found for player ${playerId}.`);
-        return res.status(400).json({ message: 'Invalid unit selected.' });
-    }
-
-    const availableCount = unitData.count - (unitData.cooldowns ? unitData.cooldowns.filter(cooldownEndStr => new Date(cooldownEndStr) > new Date()).length : 0);
-
-    if (deployQuantity <= 0 || deployQuantity > availableCount) {
-        console.warn(`Battle failed for ${playerId}: Invalid deploy quantity (${deployQuantity}) or units on cooldown. Available: ${availableCount}`);
-        return res.status(400).json({ message: 'Invalid deploy quantity or units are on cooldown.' });
-    }
-
-    // クールダウンの適用: 出撃したユニット数だけクールダウンエントリを追加
-    // クールダウン時間はサーバー側で管理すべき定数として定義
-    const unitCooldownTimes = {
-        infantry: { 1: 30 * 60 * 1000, 2: 25 * 60 * 1000, 3: 20 * 60 * 1000 },
-        armored_car: { 1: 60 * 60 * 1000, 2: 50 * 60 * 1000, 3: 40 * 60 * 1000 },
-        tank: { 1: 60 * 60 * 1000, 2: 50 * 60 * 1000, 3: 40 * 60 * 1000 },
-        fighter: { 1: 120 * 60 * 1000, 2: 100 * 60 * 1000, 3: 80 * 60 * 1000 }
-    };
-    const cooldownDuration = unitCooldownTimes[unitType][unitGrade];
-    const now = new Date();
-    for (let i = 0; i < deployQuantity; i++) {
-        unitData.cooldowns.push(new Date(now.getTime() + cooldownDuration).toISOString()); // クールダウン終了時刻をISO文字列で保存
-    }
-
-    // サーバーサイドでの戦闘力計算（これらの値もサーバーで一元管理されるべき）
-    const unitPowers = {
-        infantry: { 1: 10, 2: 20, 3: 40 },
-        armored_car: { 1: 50, 2: 100, 3: 200 },
-        tank: { 1: 200, 2: 400, 3: 800 },
-        fighter: { 1: 500, 2: 1000, 3: 2000 }
-    };
-    const playerUnitPower = unitPowers[unitType][unitGrade] * deployQuantity;
-    // 相手プレイヤーの戦闘力（BOTはpowerプロパティ、プレイヤーは領土数から簡易的に算出）
-    const enemyTotalPower = targetPlayer.power || (targetPlayer.playerTerritories * 50);
-
-    let resultText = "";
-    let win = false;
-    let acquiredCoins = 0;
-    let acquiredTerritories = 0;
-
-    if (playerUnitPower >= enemyTotalPower * 0.8) { // プレイヤーの戦力が相手の80%以上なら勝利
-        win = true;
-        acquiredTerritories = Math.floor(targetPlayer.playerTerritories * 0.2); // 相手領土の20%を奪う
-        acquiredCoins = targetPlayer.playerTerritories * 100; // 領土数に応じてコイン獲得
-
-        player.playerTerritories += acquiredTerritories; // プレイヤーの領土を増やす
-        if (player.playerTerritories > 9999) player.playerTerritories = 9999; // 上限設定
-        player.coins += acquiredCoins; // プレイヤーのコインを増やす
-
-        // 相手プレイヤーの領土を減らす
-        targetPlayer.playerTerritories -= acquiredTerritories;
-        if (targetPlayer.playerTerritories <= 0) {
-            // 相手がBOTプレイヤーであれば削除し、新しいBOTを補充
-            console.log(`Bot player ${targetPlayerId} defeated. Generating new bots.`);
-            delete playersData[targetPlayerId];
-            generateOtherPlayers(); // 新しいBOTを補充 (これにより、常にBOTが存在する状態に保たれる)
+    try {
+        // パラメータの基本的な検証
+        if (!playerId || !targetPlayerId || !unitType || !unitGrade || deployQuantity === undefined || deployQuantity <= 0) {
+            return res.status(400).json({ message: 'バトルに必要な情報が不足しているか、無効な値です。' });
         }
-        resultText = `勝利！${targetPlayer.username}から領土を一部奪い、${acquiredCoins}コインを獲得しました！`;
 
-    } else {
-        resultText = `敗北... ${targetPlayer.username}は強すぎました。領土は失いませんでした。`; // 敗北時は領土を失わない
+        const player = playersData[playerId];
+        const targetPlayer = playersData[targetPlayerId];
+
+        if (!player) {
+            return res.status(404).json({ message: '攻撃側のプレイヤーが見つかりません。' });
+        }
+        if (!targetPlayer) {
+            return res.status(404).json({ message: '攻撃対象のプレイヤーが見つかりません。' });
+        }
+
+        // ユニットの所有と利用可能性の検証
+        const playerUnitData = player.units[unitType]?.[unitGrade]; // ここを 'unitGrade' に修正
+        if (!playerUnitData || playerUnitData.count < deployQuantity) {
+            return res.status(400).json({ message: '出撃させようとしたユニットが不足しています。' });
+        }
+
+        // クールダウンのチェック (サーバー側で最終的に権限を持つ)
+        const now = Date.now();
+        // 期限切れのクールダウンをフィルタリング
+        playerUnitData.cooldowns = playerUnitData.cooldowns.filter(cooldownEnd => {
+            const endDate = new Date(cooldownEnd);
+            if (isNaN(endDate.getTime())) { // 無効な日付文字列のチェック
+                console.warn(`[SERVER WARNING] Invalid cooldown date string found: ${cooldownEnd}. Filtering it out.`);
+                return false; // 不正な日付はクールダウンとして扱わない
+            }
+            return endDate.getTime() > now;
+        });
+
+        const availableUnits = playerUnitData.count - playerUnitData.cooldowns.length;
+        if (deployQuantity > availableUnits) {
+            return res.status(400).json({ message: `ユニットがクールダウン中です。出撃可能な${availableUnits}体を超えています。` });
+        }
+
+        // --- 実際のバトルロジック ---
+        // 攻撃力の計算
+        const unitPower = unitPowers[unitType]?.[unitGrade] || 0; // ここも 'unitGrade' に修正
+        const totalAttackPower = unitPower * deployQuantity;
+
+        // 防御力の計算 (簡略化: 領土とターゲットのユニットに基づく)
+        let totalDefensePower = targetPlayer.playerTerritories * 50; // BOTはplayerTerritoriesを持つので修正
+        // ターゲットユニットからの防御力追加 (簡略化: 全てが防御に参加すると仮定)
+        for (const type in targetPlayer.units) {
+            for (const grade in targetPlayer.units[type]) {
+                totalDefensePower += (unitPowers[type]?.[grade] || 0) * (targetPlayer.units[type]?.[grade]?.count || 0);
+            }
+        }
+
+        let battleMessage = '';
+
+        if (totalAttackPower > totalDefensePower) {
+            // 攻撃側が勝利
+            // ターゲットの領土が0でないことを確認してランダムに領土を奪う
+            const maxAcquirable = targetPlayer.playerTerritories > 0 ? Math.min(5, targetPlayer.playerTerritories) : 0;
+            const acquiredTerritories = maxAcquirable > 0 ? Math.floor(Math.random() * maxAcquirable) + 1 : 0;
+            
+            let acquiredCoins = 0;
+            if (acquiredTerritories > 0) {
+                 acquiredCoins = acquiredTerritories * 1000; // 勝利報酬
+            }
+           
+            // ターゲットの領土を減らす
+            targetPlayer.playerTerritories -= acquiredTerritories;
+            targetPlayer.playerTerritories = Math.max(0, targetPlayer.playerTerritories); // 0未満にならないように
+
+            // プレイヤーの領土を増やす
+            player.playerTerritories += acquiredTerritories;
+            player.coins += acquiredCoins;
+
+            battleMessage = `戦闘に勝利！${acquiredTerritories}領土を占領し、${acquiredCoins}コインを獲得しました！`;
+
+            // ターゲットがBOTで全ての領土を失った場合、リセット（または消滅）
+            if (targetPlayer.id.startsWith('bot_') && targetPlayer.playerTerritories <= 0) { // BOTの領土が0になった場合
+                console.log(`Bot player ${targetPlayerId} defeated and reset.`);
+                // BOTをリセットする（新しいBOTを生成するより、既存BOTを再生成する方がシンプル）
+                const botIndex = parseInt(targetPlayerId.replace('bot_', ''));
+                if (!isNaN(botIndex)) {
+                     // BOTを削除し、generateOtherPlayersで補充
+                     delete playersData[targetPlayerId];
+                     generateOtherPlayers();
+                } else {
+                    // BOTでないプレイヤーの領土が0になった場合、データは残す
+                    console.log(`Human player ${targetPlayerId} defeated (territories 0). Data remains.`);
+                }
+            } else if (targetPlayer.playerTerritories <= 0 && !targetPlayer.id.startsWith('bot_')) {
+                // 人間プレイヤーの領土が0になった場合、データは残すが警告
+                console.warn(`Human player ${targetPlayerId} has 0 territories after battle.`);
+            }
+
+
+        } else {
+            // 防御側が勝利または引き分け
+            // 失敗した場合のコイン損失は、攻撃力に基づいて調整 (負けはコストがかかる)
+            player.coins = Math.max(0, player.coins - Math.floor(totalAttackPower * 0.05)); // 攻撃力の5%を失う
+            battleMessage = `戦闘に敗北しました。`;
+        }
+
+        // 出撃ユニットにクールダウンを適用 (勝敗に関わらず)
+        const unitCooldownTime = unitCooldownTimes[unitType]?.[unitGrade] || 0; // ここも 'unitGrade' に修正
+        for (let i = 0; i < deployQuantity; i++) {
+            playerUnitData.cooldowns.push(new Date(now + unitCooldownTime).toISOString());
+        }
+        // プレイヤーオブジェクトのクールダウン配列を最新の状態に更新
+        player.units[unitType][unitGrade].cooldowns = playerUnitData.cooldowns; // ここも 'unitGrade' に修正
+
+
+        // 更新されたプレイヤーデータを返す
+        res.json({
+            message: battleMessage,
+            playerData: player, // 更新されたプレイヤーオブジェクト
+            opponentData: targetPlayer // 更新された相手プレイヤーオブジェクト (領土が変更された場合など)
+        });
+
+        console.log(`[BATTLE LOG] プレイヤー ${player.username} (${playerId}) が ${targetPlayer.username} (${targetPlayerId}) を攻撃。結果: ${battleMessage}`);
+
+    } catch (error) {
+        console.error("バトル処理中にサーバーエラーが発生しました:", error);
+        // エラー時も必ずJSONを返す
+        res.status(500).json({ message: 'サーバー内部でバトル処理中に予期せぬエラーが発生しました。', error: error.message });
     }
-
-    console.log(`Battle result for ${playerId} vs ${targetPlayer.username}: ${resultText}`);
-    res.json({
-        message: resultText,
-        win: win,
-        acquiredCoins: acquiredCoins,
-        acquiredTerritories: acquiredTerritories,
-        playerData: player // 更新されたプレイヤーデータをクライアントに返す
-    });
 });
+
 
 
 // --- サーバーを起動 ---
